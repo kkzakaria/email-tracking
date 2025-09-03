@@ -43,22 +43,45 @@ export async function GET(
         .eq('id', id)
         .single()
 
-      if (!error && emailTracking && emailTracking.status === 'PENDING') {
-        // Mark email as opened (replied status indicates interaction)
+      if (!error && emailTracking) {
+        // Collecter des métadonnées sur l'ouverture
+        const userAgent = request.headers.get('user-agent') || ''
+        const referer = request.headers.get('referer') || ''
+        const forwardedFor = request.headers.get('x-forwarded-for')
+        const realIp = request.headers.get('x-real-ip')
+        const clientIp = forwardedFor?.split(',')[0] || realIp || 'unknown'
+        
+        // Enregistrer l'événement d'ouverture dans email_events
         await supabase
-          .from('email_tracking')
-          .update({
-            status: 'REPLIED',
-            reply_received_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+          .from('email_events')
+          .insert({
+            email_tracking_id: id,
+            event_type: 'OPEN',
+            client_ip: clientIp,
+            user_agent: userAgent,
+            referer: referer,
+            created_at: new Date().toISOString()
           })
-          .eq('id', id)
+        
+        // Mettre à jour le statut si c'est la première ouverture
+        if (emailTracking.status === 'PENDING') {
+          await supabase
+            .from('email_tracking')
+            .update({
+              status: 'REPLIED',
+              reply_received_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+        }
 
-        // Log the tracking event (optional - for analytics)
-        console.log(`Email tracking pixel loaded for ID: ${id}`, {
+        // Log l'événement de tracking
+        console.log(`📧 Email ouvert - ID: ${id}`, {
           recipient: emailTracking.recipient_email,
           subject: emailTracking.subject,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          clientIp,
+          userAgent
         })
       }
     } catch (dbError) {
