@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { emailService } from '@/lib/supabase/email-service'
+import { getEmailStats } from '@/lib/supabase/email-service'
 
 // GET /api/emails/stats - Get email tracking statistics
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get email statistics
-    const stats = await emailService.getEmailStats()
+    const stats = await getEmailStats()
     
     // Calculate additional metrics
     const totalEmails = Object.values(stats).reduce((a, b) => a + b, 0)
