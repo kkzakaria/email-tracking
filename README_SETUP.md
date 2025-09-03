@@ -3,6 +3,7 @@
 ## 🚀 Configuration rapide
 
 ### 1. Prérequis
+
 - Node.js 18+ et pnpm
 - PostgreSQL installé localement ou une instance cloud
 - Un compte Microsoft Azure avec une App Registration
@@ -16,6 +17,7 @@ pnpm install
 ### 3. Configuration de la base de données
 
 #### Option A : PostgreSQL local
+
 ```bash
 # Créer la base de données
 createdb email_tracking
@@ -28,6 +30,7 @@ DATABASE_URL="postgresql://votre_user:votre_password@localhost:5432/email_tracki
 ```
 
 #### Option B : Utiliser une base cloud (Neon, Supabase, etc.)
+
 Remplacez DATABASE_URL par l'URL fournie par votre provider.
 
 ### 4. Configurer Prisma
@@ -69,6 +72,7 @@ pnpm prisma migrate dev
 ### 6. Configuration NextAuth
 
 Dans `.env.local` :
+
 ```env
 # Générer avec : openssl rand -base64 32
 NEXTAUTH_SECRET="votre_secret_genere"
@@ -85,7 +89,7 @@ Ouvrir [http://localhost:3000](http://localhost:3000)
 
 ## 📝 Structure du projet
 
-```
+```text
 email-tracking/
 ├── app/                      # Next.js App Router
 │   ├── api/                 # API Routes
@@ -120,15 +124,18 @@ pnpm lint                    # Linter le code
 ## 🐛 Troubleshooting
 
 ### Erreur : "Invalid client" lors de la connexion
+
 - Vérifier que les redirect URIs dans Azure correspondent exactement
 - Vérifier AZURE_AD_CLIENT_ID et AZURE_AD_CLIENT_SECRET
 
 ### Erreur : "Database connection failed"
+
 - Vérifier que PostgreSQL est lancé
 - Vérifier DATABASE_URL dans .env.local
 - Exécuter `pnpm prisma generate`
 
 ### Erreur : "NEXTAUTH_SECRET is not set"
+
 - Générer un secret : `openssl rand -base64 32`
 - L'ajouter dans .env.local
 
