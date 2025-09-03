@@ -1,23 +1,14 @@
 import { Client } from "@microsoft/microsoft-graph-client";
-import { createClient } from "@/utils/supabase/server";
+import { getMicrosoftToken } from "@/lib/microsoft/graph-helper";
 
 /**
  * Creates an authenticated Microsoft Graph client using Supabase stored tokens
  */
 export async function createGraphClient(): Promise<Client | null> {
-  const supabase = await createClient();
+  // Get the access token (will auto-refresh if needed)
+  const accessToken = await getMicrosoftToken();
   
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    console.error("No authenticated user available");
-    return null;
-  }
-
-  // Get Microsoft Graph access token from user metadata or separate table
-  // This would need to be stored during the OAuth flow
-  const microsoftToken = user.user_metadata?.microsoft_access_token;
-  
-  if (!microsoftToken) {
+  if (!accessToken) {
     console.error("No Microsoft Graph access token available for user");
     return null;
   }
@@ -25,7 +16,7 @@ export async function createGraphClient(): Promise<Client | null> {
   try {
     const client = Client.init({
       authProvider: (done) => {
-        done(null, microsoftToken);
+        done(null, accessToken);
       },
     });
 

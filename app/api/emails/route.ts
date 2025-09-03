@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { emailService } from '@/lib/supabase/email-service'
+import { getEmailTrackings, createEmailTracking } from '@/lib/supabase/email-service'
 
 // GET /api/emails - List user's email tracking records
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get email trackings
-    const emails = await emailService.getEmailTrackings()
+    const emails = await getEmailTrackings()
     
     return NextResponse.json({
       success: true,
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create email tracking
-    const emailTracking = await emailService.createEmailTracking({
+    const emailTracking = await createEmailTracking({
       recipient_email,
       subject,
       message_id,

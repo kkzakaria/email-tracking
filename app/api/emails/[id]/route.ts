@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { emailService } from '@/lib/supabase/email-service'
+import { getEmailTrackingById, updateEmailTracking, deleteEmailTracking } from '@/lib/supabase/email-service'
 
 // GET /api/emails/[id] - Get specific email tracking
 export async function GET(
