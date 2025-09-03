@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Mail, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { emailService } from "@/lib/supabase/email-service";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -11,14 +12,25 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Note: Ces requêtes seront fonctionnelles une fois la DB Supabase configurée
-  // Pour l'instant, on utilise des valeurs par défaut
-  const emailStats = {
+  // Récupérer les statistiques et emails directement depuis le service
+  let emailStats = {
     PENDING: 0,
     REPLIED: 0,
     STOPPED: 0,
     EXPIRED: 0
   };
+
+  let emails: any[] = [];
+
+  try {
+    // Récupérer les statistiques
+    emailStats = await emailService.getEmailStats();
+    
+    // Récupérer la liste des emails
+    emails = await emailService.getEmailTrackings();
+  } catch (error) {
+    console.error('Erreur lors de la récupération des données:', error);
+  }
   
   const totalEmails = Object.values(emailStats).reduce((a, b) => a + b, 0);
 
@@ -87,13 +99,72 @@ export default async function DashboardPage() {
           </div>
 
           <div className="p-6">
-            <div className="text-center py-12">
-              <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Aucun email suivi pour le moment</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Commencez par ajouter un email à suivre
-              </p>
-            </div>
+            {emails.length === 0 ? (
+              <div className="text-center py-12">
+                <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Aucun email suivi pour le moment</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Commencez par ajouter un email à suivre
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Destinataire
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Sujet
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Envoyé le
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {emails.map((email) => (
+                      <tr key={email.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {email.recipient_email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate">
+                          {email.subject}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            email.status === 'REPLIED' 
+                              ? 'bg-green-100 text-green-800'
+                              : email.status === 'PENDING'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : email.status === 'STOPPED'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {email.status === 'REPLIED' && 'Répondu'}
+                            {email.status === 'PENDING' && 'En attente'}
+                            {email.status === 'STOPPED' && 'Arrêté'}
+                            {email.status === 'EXPIRED' && 'Expiré'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(email.sent_at).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
