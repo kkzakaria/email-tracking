@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Mail, Clock, CheckCircle, AlertCircle } from "lucide-react";
-import { emailService } from "@/lib/supabase/email-service";
+import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -24,10 +24,10 @@ export default async function DashboardPage() {
 
   try {
     // Récupérer les statistiques
-    emailStats = await emailService.getEmailStats();
+    emailStats = await getEmailStats();
     
     // Récupérer la liste des emails
-    emails = await emailService.getEmailTrackings();
+    emails = await getEmailTrackings();
   } catch (error) {
     console.error('Erreur lors de la récupération des données:', error);
   }
