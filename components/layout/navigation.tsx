@@ -8,6 +8,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { Mail, LayoutDashboard, Settings, LogOut, User } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { ModeToggle } from "@/components/mode-toggle";
+import { CurrentUserAvatar } from "@/components/current-user-avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navigation() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -99,21 +107,46 @@ export function Navigation() {
           <div className="flex items-center">
             <div className="flex items-center gap-4">
               <ModeToggle />
-              <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-gray-400 dark:text-gray-300" />
-                <span className="text-sm text-gray-700 dark:text-gray-200">
-                  {user.user_metadata?.full_name || user.email}
-                </span>
-              </div>
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Déconnexion
-                </button>
-              </form>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 transition-colors">
+                  <CurrentUserAvatar />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <div className="flex items-center gap-2 px-2 py-1.5">
+                      <User className="w-4 h-4 text-gray-500" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">
+                          {user.user_metadata?.full_name || "Utilisateur"}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {user.email}
+                        </span>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/settings" className="flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      Paramètres
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <form action={signOut} className="w-full">
+                      <button
+                        type="submit"
+                        className="flex items-center gap-2 w-full text-left px-2 py-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Déconnexion
+                      </button>
+                    </form>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
