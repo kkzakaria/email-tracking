@@ -1,11 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { Plus, Webhook } from "lucide-react";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
 import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
 import { DashboardStats } from "@/components/dashboard-stats";
-import Link from "next/link";
+import { DashboardActionButtons } from "@/components/dashboard-action-buttons";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -45,14 +45,15 @@ export default async function DashboardPage() {
   const totalEmails = Object.values(emailStats).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Bienvenue {user.user_metadata?.full_name || user.email}
-          </p>
-        </div>
+    <TooltipProvider>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Bienvenue {user.user_metadata?.full_name || user.email}
+            </p>
+          </div>
 
         {/* Statistics Cards */}
         <div className="mb-8">
@@ -69,20 +70,7 @@ export default async function DashboardPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Emails suivis</h2>
               <div className="flex items-center gap-3">
                 <OutlookSyncButton />
-                <Link 
-                  href="/dashboard/webhooks"
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  <Webhook className="w-4 h-4" />
-                  Webhooks
-                </Link>
-                <Link 
-                  href="/dashboard/compose"
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Composer un email
-                </Link>
+                <DashboardActionButtons />
               </div>
             </div>
           </div>
@@ -91,7 +79,8 @@ export default async function DashboardPage() {
             <EmailsTableWrapper data={emails} />
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
