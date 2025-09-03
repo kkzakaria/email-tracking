@@ -9,6 +9,7 @@ import { Mail, LayoutDashboard, Settings, LogOut, User } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { ModeToggle } from "@/components/mode-toggle";
 import { CurrentUserAvatar } from "@/components/current-user-avatar";
+import { MicrosoftConnectButton } from "@/components/microsoft-connect-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,8 +106,9 @@ export function Navigation() {
           </div>
           
           <div className="flex items-center">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <ModeToggle />
+              <MicrosoftConnectButton />
               
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 transition-colors">

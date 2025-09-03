@@ -2,7 +2,6 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Mail, Clock, CheckCircle, AlertCircle, Plus, RefreshCw, Webhook } from "lucide-react";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
-import { MicrosoftConnectCard } from "@/components/dashboard/microsoft-connect-card";
 import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
 import { TrackingStatus } from "@/components/dashboard/tracking-status";
 import Link from "next/link";
@@ -95,11 +94,6 @@ export default async function DashboardPage() {
               <AlertCircle className="w-8 h-8 text-purple-600" />
             </div>
           </div>
-        </div>
-
-        {/* Microsoft Connection Card */}
-        <div className="mb-8">
-          <MicrosoftConnectCard />
         </div>
 
         {/* Tracking Status */}
