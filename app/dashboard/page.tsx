@@ -1,10 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
-import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
 import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
 import { DashboardStats } from "@/components/dashboard-stats";
-import { DashboardActionButtons } from "@/components/dashboard-action-buttons";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default async function DashboardPage() {
@@ -68,10 +66,7 @@ export default async function DashboardPage() {
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Emails suivis</h2>
-              <div className="flex items-center gap-3">
-                <OutlookSyncButton />
-                <DashboardActionButtons />
-              </div>
+              {/* Les boutons d'actions sont maintenant intégrés dans le tableau */}
             </div>
           </div>
 

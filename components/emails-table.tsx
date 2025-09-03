@@ -98,6 +98,7 @@ interface EmailsTableProps {
   onStop?: (ids: string[]) => Promise<void>
   onView?: (email: EmailTracking) => void
   isLoading?: boolean
+  headerActions?: React.ReactNode
 }
 
 // Custom filter function for multi-column searching
@@ -141,7 +142,7 @@ const getStatusConfig = (status: string) => {
   return statusConfig[status as keyof typeof statusConfig] || statusConfig.EXPIRED
 }
 
-export function EmailsTable({ data, onDelete, onStop, onView, isLoading = false }: EmailsTableProps) {
+export function EmailsTable({ data, onDelete, onStop, onView, isLoading = false, headerActions }: EmailsTableProps) {
   const id = useId()
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
@@ -462,6 +463,9 @@ export function EmailsTable({ data, onDelete, onStop, onView, isLoading = false 
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Header action buttons */}
+          {headerActions}
+          
           {/* Bulk actions when rows are selected */}
           {hasSelection && (
             <>
