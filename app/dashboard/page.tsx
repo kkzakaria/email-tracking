@@ -4,6 +4,7 @@ import { Mail, Clock, CheckCircle, AlertCircle, Plus, RefreshCw, Webhook } from 
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 import { MicrosoftConnectCard } from "@/components/dashboard/microsoft-connect-card";
 import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
+import { TrackingStatus } from "@/components/dashboard/tracking-status";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -99,6 +100,14 @@ export default async function DashboardPage() {
         {/* Microsoft Connection Card */}
         <div className="mb-8">
           <MicrosoftConnectCard />
+        </div>
+
+        {/* Tracking Status */}
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">Statut du système</h3>
+            <TrackingStatus />
+          </div>
         </div>
 
         {/* Email Tracking Table */}
