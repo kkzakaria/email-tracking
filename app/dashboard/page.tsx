@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { Mail, Clock, CheckCircle, AlertCircle, Plus, RefreshCw } from "lucide-react";
+import { Mail, Clock, CheckCircle, AlertCircle, Plus, RefreshCw, Webhook } from "lucide-react";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 import { MicrosoftConnectCard } from "@/components/dashboard/microsoft-connect-card";
 import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
@@ -108,6 +108,13 @@ export default async function DashboardPage() {
               <h2 className="text-lg font-semibold text-gray-900">Emails suivis</h2>
               <div className="flex items-center gap-3">
                 <OutlookSyncButton />
+                <Link 
+                  href="/dashboard/webhooks"
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <Webhook className="w-4 h-4" />
+                  Webhooks
+                </Link>
                 <Link 
                   href="/dashboard/compose"
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
