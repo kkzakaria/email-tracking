@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Mail, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
+import { MicrosoftConnectCard } from "@/components/dashboard/microsoft-connect-card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -85,6 +86,11 @@ export default async function DashboardPage() {
               <AlertCircle className="w-8 h-8 text-purple-600" />
             </div>
           </div>
+        </div>
+
+        {/* Microsoft Connection Card */}
+        <div className="mb-8">
+          <MicrosoftConnectCard />
         </div>
 
         {/* Email Tracking Table */}

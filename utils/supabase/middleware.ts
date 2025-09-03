@@ -35,7 +35,9 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/_next') &&
     !request.nextUrl.pathname.startsWith('/api') &&
-    request.nextUrl.pathname !== '/'
+    request.nextUrl.pathname !== '/' &&
+    // Don't redirect if coming from Microsoft OAuth callback
+    !request.nextUrl.searchParams.has('microsoft')
   ) {
     // No user, redirect to login page
     const url = request.nextUrl.clone()
