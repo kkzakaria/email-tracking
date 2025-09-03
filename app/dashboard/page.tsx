@@ -1,14 +1,26 @@
-import { getServerSession } from "next-auth";
+import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth/auth-options";
 import { Mail, Clock, CheckCircle, AlertCircle } from "lucide-react";
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const supabase = await createClient();
 
-  if (!session) {
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
     redirect("/login");
   }
+
+  // Note: Ces requêtes seront fonctionnelles une fois la DB Supabase configurée
+  // Pour l'instant, on utilise des valeurs par défaut
+  const emailStats = {
+    PENDING: 0,
+    REPLIED: 0,
+    STOPPED: 0,
+    EXPIRED: 0
+  };
+  
+  const totalEmails = Object.values(emailStats).reduce((a, b) => a + b, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -16,7 +28,7 @@ export default async function DashboardPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
           <p className="mt-2 text-gray-600">
-            Bienvenue {session.user?.name || session.user?.email}
+            Bienvenue {user.user_metadata?.full_name || user.email}
           </p>
         </div>
 
@@ -26,7 +38,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Emails suivis</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">0</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{totalEmails}</p>
               </div>
               <Mail className="w-8 h-8 text-blue-600" />
             </div>
@@ -36,7 +48,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">En attente</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">0</p>
+                <p className="text-2xl font-bold text-yellow-600 mt-1">{emailStats.PENDING}</p>
               </div>
               <Clock className="w-8 h-8 text-yellow-600" />
             </div>
@@ -46,7 +58,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Répondus</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">0</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">{emailStats.REPLIED}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
@@ -55,8 +67,8 @@ export default async function DashboardPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Rappels envoyés</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">0</p>
+                <p className="text-sm font-medium text-gray-600">Arrêtés</p>
+                <p className="text-2xl font-bold text-purple-600 mt-1">{emailStats.STOPPED}</p>
               </div>
               <AlertCircle className="w-8 h-8 text-purple-600" />
             </div>
