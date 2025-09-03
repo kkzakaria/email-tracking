@@ -1,15 +1,59 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { createClient } from "@/utils/supabase/client";
+import { signOut } from "@/app/login/actions";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Mail, LayoutDashboard, Settings, LogOut, User } from "lucide-react";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 export function Navigation() {
-  const { data: session } = useSession();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
 
-  if (!session) {
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false);
+    };
+
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          router.push('/login');
+        } else {
+          setUser(session.user);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth, router]);
+
+  if (loading) {
+    return (
+      <nav className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <Mail className="w-8 h-8 text-blue-600" />
+              <span className="ml-2 text-xl font-bold text-gray-900">Email Tracking</span>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  if (!user) {
     return null;
   }
 
@@ -56,16 +100,18 @@ export function Navigation() {
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5 text-gray-400" />
                 <span className="text-sm text-gray-700">
-                  {session.user?.name || session.user?.email}
+                  {user.user_metadata?.full_name || user.email}
                 </span>
               </div>
-              <button
-                onClick={() => signOut({ callbackUrl: "/login" })}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Déconnexion
-              </button>
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Déconnexion
+                </button>
+              </form>
             </div>
           </div>
         </div>

@@ -1,22 +1,31 @@
 import { Client } from "@microsoft/microsoft-graph-client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
+import { createClient } from "@/utils/supabase/server";
 
 /**
- * Creates an authenticated Microsoft Graph client
+ * Creates an authenticated Microsoft Graph client using Supabase stored tokens
  */
 export async function createGraphClient(): Promise<Client | null> {
-  const session = await getServerSession(authOptions);
+  const supabase = await createClient();
+  
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    console.error("No authenticated user available");
+    return null;
+  }
 
-  if (!session?.accessToken) {
-    console.error("No access token available in session");
+  // Get Microsoft Graph access token from user metadata or separate table
+  // This would need to be stored during the OAuth flow
+  const microsoftToken = user.user_metadata?.microsoft_access_token;
+  
+  if (!microsoftToken) {
+    console.error("No Microsoft Graph access token available for user");
     return null;
   }
 
   try {
     const client = Client.init({
       authProvider: (done) => {
-        done(null, session.accessToken!);
+        done(null, microsoftToken);
       },
     });
 

@@ -1,7 +1,5 @@
-"use client";
-
-import { signIn } from "next-auth/react";
-import { Mail, Shield, ArrowRight } from "lucide-react";
+import { login, signup } from './actions'
+import { Mail, Shield } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -22,26 +20,52 @@ export default function LoginPage() {
               Suivez vos emails professionnels et gérez vos relances automatiquement
             </p>
 
-            <div className="space-y-4">
-              <button
-                onClick={() => signIn("microsoft-entra-id", { callbackUrl: "/dashboard" })}
-                className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <svg
-                  className="w-5 h-5"
-                  viewBox="0 0 21 21"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
+            <form className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="votre@email.com"
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de passe
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  formAction={login}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
-                  <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-                  <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-                  <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-                  <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-                </svg>
-                Se connecter avec Microsoft
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+                  Se connecter
+                </button>
+                <button
+                  formAction={signup}
+                  className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                >
+                  S'inscrire
+                </button>
+              </div>
+            </form>
 
             <div className="mt-8 space-y-3">
               <div className="flex items-start gap-3">
@@ -51,7 +75,7 @@ export default function LoginPage() {
                     <span className="font-semibold">Connexion sécurisée</span>
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Authentification via Microsoft Azure AD avec OAuth 2.0
+                    Authentification sécurisée avec Supabase
                   </p>
                 </div>
               </div>
@@ -60,10 +84,10 @@ export default function LoginPage() {
                 <Mail className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm text-gray-600">
-                    <span className="font-semibold">Permissions limitées</span>
+                    <span className="font-semibold">Données protégées</span>
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Accès uniquement aux emails pour le suivi et les rappels
+                    Vos données sont chiffrées et sécurisées
                   </p>
                 </div>
               </div>

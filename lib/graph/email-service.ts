@@ -155,7 +155,7 @@ export class EmailService {
       // Add tracking pixel to HTML body
       let body = params.body;
       if (params.isHtml) {
-        const pixelUrl = `${process.env.NEXTAUTH_URL}/api/emails/pixel/${trackingId}`;
+        const pixelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/emails/pixel/${trackingId}`;
         const trackingPixel = `<img src="${pixelUrl}" width="1" height="1" style="display:none;" alt="" />`;
         
         // Insert before closing body tag if exists, otherwise append

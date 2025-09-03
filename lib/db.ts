@@ -1,9 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { createClient } from "@/utils/supabase/server";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export async function getDb() {
+  return await createClient();
+}
