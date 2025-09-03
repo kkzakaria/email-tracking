@@ -10,6 +10,7 @@ import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { ModeToggle } from "@/components/mode-toggle";
 import { CurrentUserAvatar } from "@/components/current-user-avatar";
 import { MicrosoftConnectButton } from "@/components/microsoft-connect-button";
+import { SystemStatusButton } from "@/components/system-status-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,11 +108,12 @@ export function Navigation() {
           
           <div className="flex items-center">
             <div className="flex items-center gap-3">
-              <ModeToggle />
               <MicrosoftConnectButton />
+              <SystemStatusButton />
+              <ModeToggle />
               
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 transition-colors">
+                <DropdownMenuTrigger className="flex items-center gap-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 transition-colors border border-gray-300 dark:border-gray-600">
                   <CurrentUserAvatar />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">

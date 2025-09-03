@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Mail, Clock, CheckCircle, AlertCircle, Plus, RefreshCw, Webhook } from "lucide-react";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
-import { TrackingStatus } from "@/components/dashboard/tracking-status";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -93,14 +92,6 @@ export default async function DashboardPage() {
               </div>
               <AlertCircle className="w-8 h-8 text-purple-600" />
             </div>
-          </div>
-        </div>
-
-        {/* Tracking Status */}
-        <div className="mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Statut du système</h3>
-            <TrackingStatus />
           </div>
         </div>
 
