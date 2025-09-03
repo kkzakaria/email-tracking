@@ -5,7 +5,7 @@ import { getEmailTrackingById, updateEmailTracking, deleteEmailTracking } from '
 // GET /api/emails/[id] - Get specific email tracking
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -19,6 +19,7 @@ export async function GET(
       )
     }
 
+    const params = await context.params
     const { id } = params
 
     // Validate UUID format
@@ -31,7 +32,7 @@ export async function GET(
     }
 
     // Get email tracking
-    const emailTracking = await emailService.getEmailTrackingById(id)
+    const emailTracking = await getEmailTrackingById(id)
     
     if (!emailTracking) {
       return NextResponse.json(
@@ -56,7 +57,7 @@ export async function GET(
 // PATCH /api/emails/[id] - Update email tracking status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -70,6 +71,7 @@ export async function PATCH(
       )
     }
 
+    const params = await context.params
     const { id } = params
 
     // Validate UUID format
@@ -95,7 +97,7 @@ export async function PATCH(
     }
 
     // Prepare update data
-    const updateData: any = {}
+    const updateData: Record<string, string> = {}
     if (status) updateData.status = status
     if (reply_received_at) updateData.reply_received_at = reply_received_at
     if (stopped_at) updateData.stopped_at = stopped_at
@@ -109,7 +111,7 @@ export async function PATCH(
     }
 
     // Update email tracking
-    const updatedEmailTracking = await emailService.updateEmailTracking(id, updateData)
+    const updatedEmailTracking = await updateEmailTracking(id, updateData)
 
     return NextResponse.json({
       success: true,
@@ -127,7 +129,7 @@ export async function PATCH(
 // DELETE /api/emails/[id] - Delete email tracking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -141,6 +143,7 @@ export async function DELETE(
       )
     }
 
+    const params = await context.params
     const { id } = params
 
     // Validate UUID format
@@ -153,7 +156,7 @@ export async function DELETE(
     }
 
     // Delete email tracking
-    await emailService.deleteEmailTracking(id)
+    await deleteEmailTracking(id)
 
     return NextResponse.json({
       success: true,

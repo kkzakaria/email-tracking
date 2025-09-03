@@ -1,8 +1,10 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { Mail, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Mail, Clock, CheckCircle, AlertCircle, Plus, RefreshCw } from "lucide-react";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 import { MicrosoftConnectCard } from "@/components/dashboard/microsoft-connect-card";
+import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
+import Link from "next/link";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -21,7 +23,13 @@ export default async function DashboardPage() {
     EXPIRED: 0
   };
 
-  let emails: any[] = [];
+  let emails: Array<{
+    id: string
+    recipient_email: string
+    subject: string
+    status: string
+    sent_at: string
+  }> = [];
 
   try {
     // Récupérer les statistiques
@@ -98,9 +106,16 @@ export default async function DashboardPage() {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Emails suivis</h2>
-              <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                Ajouter un email
-              </button>
+              <div className="flex items-center gap-3">
+                <OutlookSyncButton />
+                <Link 
+                  href="/dashboard/compose"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Composer un email
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -109,9 +124,16 @@ export default async function DashboardPage() {
               <div className="text-center py-12">
                 <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">Aucun email suivi pour le moment</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  Commencez par ajouter un email à suivre
+                <p className="text-sm text-gray-400 mt-1 mb-4">
+                  Commencez par composer et envoyer votre premier email tracké
                 </p>
+                <Link 
+                  href="/dashboard/compose"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Composer un email
+                </Link>
               </div>
             ) : (
               <div className="overflow-x-auto">

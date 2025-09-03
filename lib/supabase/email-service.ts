@@ -28,6 +28,7 @@ export interface EmailTrackingUpdate {
   status?: 'PENDING' | 'REPLIED' | 'STOPPED' | 'EXPIRED'
   reply_received_at?: string
   stopped_at?: string
+  message_id?: string
 }
 
 export async function createEmailTracking(data: EmailTrackingInsert): Promise<EmailTracking> {
