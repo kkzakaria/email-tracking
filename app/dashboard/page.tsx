@@ -1,8 +1,9 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { Mail, Clock, CheckCircle, AlertCircle, Plus, RefreshCw, Webhook } from "lucide-react";
+import { Mail, Clock, CheckCircle, AlertCircle, Plus, Webhook } from "lucide-react";
 import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
+import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -120,80 +121,8 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="p-6">
-            {emails.length === 0 ? (
-              <div className="text-center py-12">
-                <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Aucun email suivi pour le moment</p>
-                <p className="text-sm text-gray-400 mt-1 mb-4">
-                  Commencez par composer et envoyer votre premier email tracké
-                </p>
-                <Link 
-                  href="/dashboard/compose"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Composer un email
-                </Link>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Destinataire
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Sujet
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Statut
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Envoyé le
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {emails.map((email) => (
-                      <tr key={email.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {email.recipient_email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate">
-                          {email.subject}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            email.status === 'REPLIED' 
-                              ? 'bg-green-100 text-green-800'
-                              : email.status === 'PENDING'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : email.status === 'STOPPED'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {email.status === 'REPLIED' && 'Répondu'}
-                            {email.status === 'PENDING' && 'En attente'}
-                            {email.status === 'STOPPED' && 'Arrêté'}
-                            {email.status === 'EXPIRED' && 'Expiré'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(email.sent_at).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <div className="p-0">
+            <EmailsTableWrapper data={emails} />
           </div>
         </div>
       </div>
