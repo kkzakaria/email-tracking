@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -29,7 +29,7 @@ export function StatsCard({
 }: StatsCardProps) {
   return (
     <Card className={cn("transition-all duration-200 hover:shadow-md", className)}>
-      <CardContent className="py-3 px-4">
+      <CardContent className="px-4">
         <div className="flex items-center gap-3">
           <Icon 
             className={cn(

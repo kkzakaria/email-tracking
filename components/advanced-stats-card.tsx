@@ -25,7 +25,7 @@ export function AdvancedStatsCard({
       "transition-all duration-200 hover:shadow-md border-muted/40",
       className
     )}>
-      <CardContent className="py-3 px-4">
+      <CardContent className="px-4">
         <div className="flex items-center gap-3">
           <Icon className={cn("h-5 w-5 flex-shrink-0", iconColor)} />
           <span className="text-sm font-medium text-muted-foreground flex-1">

@@ -4,6 +4,7 @@ import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
 import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -45,16 +46,9 @@ export default async function DashboardPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Bienvenue {user.user_metadata?.full_name || user.email}
-            </p>
-          </div>
-
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Statistics Cards */}
-        <div className="mb-8">
+        <div className="mb-4">
           <DashboardStats 
             emailStats={emailStats} 
             totalEmails={totalEmails} 
@@ -62,18 +56,11 @@ export default async function DashboardPage() {
         </div>
 
         {/* Email Tracking Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Emails suivis</h2>
-              {/* Les boutons d'actions sont maintenant intégrés dans le tableau */}
-            </div>
-          </div>
-
-          <div className="p-0">
+        <Card>
+          <CardContent className="px-6 py-0">
             <EmailsTableWrapper data={emails} />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
         </div>
       </div>
     </TooltipProvider>
