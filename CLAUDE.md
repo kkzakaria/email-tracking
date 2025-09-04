@@ -4,118 +4,131 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Core Development
-
 ```bash
 # Start development server with Turbopack
 pnpm dev
 
-# Build for production with Turbopack
+# Build for production
 pnpm build
 
-# Start production server
+# Start production server  
 pnpm start
 
-# Run ESLint
+# Run linting
 pnpm lint
 ```
-
-### Package Management
-
-This project uses `pnpm` as the package manager with workspace configuration for Prisma client optimization.
 
 ## Architecture Overview
 
 ### Technology Stack
 
-- **Frontend Framework**: Next.js 15.5.2 with App Router and Turbopack
-- **Language**: TypeScript with strict mode enabled
-- **Styling**: Tailwind CSS v4 with CSS variables
-- **UI Components**: shadcn/ui with "new-york" style
+- **Framework**: Next.js 15.5.2 with App Router and Turbopack
+- **Language**: TypeScript with strict mode
+- **Database**: Supabase (PostgreSQL) with Row Level Security
+- **Authentication**: Supabase Auth with Microsoft OAuth integration
+- **Styling**: Tailwind CSS v4 with CSS variables for theming
+- **UI Components**: shadcn/ui components with custom styling
 - **Icons**: Lucide React
-- **Database**: Prisma ORM (client configured, schema pending)
-- **Authentication**: Planned NextAuth.js with Microsoft Provider (per project structure)
-- **Fonts**: Geist Sans and Geist Mono via next/font
+- **Email Operations**: Microsoft Graph API v3
+- **State Management**: React Query (TanStack Query)
+- **Tables**: TanStack React Table for data grids
 
 ### Project Structure
 
-This is an email tracking application with the following planned architecture:
+Email tracking application with Microsoft 365 integration:
 
-```text
-app/                      # Next.js App Router directory
-├── api/                 # API Routes
-│   ├── auth/           # NextAuth authentication endpoints
-│   ├── emails/         # Email tracking and management endpoints
-│   │   ├── track/      # Email tracking logic
-│   │   ├── list/       # Email listing
-│   │   ├── check-replies/  # Reply checking
-│   │   └── send-reminders/ # Reminder sending
-│   └── cron/           # Scheduled jobs
-├── dashboard/          # Dashboard pages and components
-└── login/             # Authentication pages
+```
+app/
+├── api/                     # API endpoints
+│   ├── auth/microsoft/     # Microsoft OAuth flow
+│   ├── emails/            # Email CRUD and tracking operations
+│   │   ├── send/         # Send emails with tracking
+│   │   ├── sync/         # Sync with Outlook
+│   │   ├── pixel/[id]/   # Tracking pixel endpoint
+│   │   └── click/[id]/   # Link click tracking
+│   └── webhooks/          # Webhook handlers
+│       └── outlook/       # Microsoft Graph webhooks
+├── dashboard/             # Main application UI
+│   ├── compose/          # Email composition
+│   └── webhooks/         # Webhook monitoring
+└── login/                # Authentication flow
 
-lib/                    # Core utilities and business logic
-├── graph/             # Microsoft Graph SDK integration
-│   ├── client.ts      # Graph client setup
-│   └── auth.ts        # Graph authentication
-├── utils/             # Utility functions
-│   └── email-parser.ts # Email parsing utilities
-└── utils.ts           # shadcn/ui class utilities (cn function)
+lib/
+├── supabase/             # Supabase client configurations
+│   ├── client.ts        # Browser client
+│   ├── server.ts        # Server client
+│   └── middleware.ts    # Auth middleware
+├── microsoft/            # Microsoft Graph integration
+│   ├── graph-helper.ts  # Graph API utilities
+│   ├── email-service.ts # Email operations
+│   └── webhook-service.ts # Webhook subscriptions
+└── services/             # Business logic services
 
-components/            # Reusable UI components
-├── ui/               # Base UI components (shadcn/ui)
-└── layout/          # Layout components
+components/
+├── ui/                   # shadcn/ui base components
+├── dashboard/           # Dashboard-specific components
+└── layout/             # Layout components
 ```
 
 ### Key Conventions
 
 #### Import Aliases
-
 - `@/*` - Root directory imports
-- `@/components` - Component imports
-- `@/lib` - Library/utility imports
 - `@/components/ui` - UI component imports
-- `@/hooks` - Custom hooks
+- `@/lib` - Library and utility imports
+- `@/hooks` - Custom React hooks
 
-#### TypeScript Configuration
+#### Database Schema
 
-- Target: ES2017
-- Strict mode enabled
-- Module resolution: bundler
-- Path aliases configured with @ prefix
+Supabase tables with RLS enabled:
+- `email_tracking` - Core tracking records
+- `email_events` - Click and open events
+- `oauth_states` - OAuth flow state management
+- `webhook_subscriptions` - Graph API webhooks
+- `webhook_events` - Webhook event logs
 
-#### Component Development
+Run migrations: `supabase db push`
+
+#### Authentication Flow
+
+1. User authenticates via Supabase Auth
+2. Microsoft OAuth tokens stored in Supabase
+3. Graph API client uses tokens from Supabase
+4. Server-side auth via `createClient` from `@/lib/supabase/server`
+5. Client-side auth via `createBrowserClient` from `@/lib/supabase/client`
+
+#### Component Patterns
 
 - Use shadcn/ui components from `@/components/ui`
-- Utilize the `cn()` utility from `@/lib/utils` for className merging
-- Follow the "new-york" style guide for shadcn/ui components
-- Icons should use lucide-react library
+- Apply `cn()` utility for className merging
+- Server Components by default, Client Components when needed
+- Loading states with `loading.tsx` files
+- Error boundaries with `error.tsx` files
 
-#### Styling
+#### API Development
 
-- Tailwind CSS v4 with PostCSS
-- CSS variables enabled for theming
-- Global styles in `app/globals.css`
-- Use `tw-animate-css` for animations
+- Route handlers in `app/api/*/route.ts`
+- Always validate auth with `supabase.auth.getUser()`
+- Return proper HTTP status codes
+- Handle errors gracefully with try/catch
 
-### Database Integration
+### Development Workflow
 
-- Prisma ORM is configured but schema is not yet defined
-- pnpm workspace configured to optimize Prisma client builds
-- Database models and migrations should be placed in `prisma/` directory
+1. **Database Changes**: Edit SQL files in `supabase/migrations/`
+2. **UI Components**: Use shadcn/ui CLI or create in `components/ui/`
+3. **Business Logic**: Add services in `lib/services/`
+4. **API Endpoints**: Create route handlers in `app/api/`
+5. **Testing**: Manual testing via dashboard interface
 
-### Microsoft Graph Integration
+### Environment Variables
 
-The project is structured to integrate with Microsoft Graph API for email operations:
-
-- Authentication flow through NextAuth.js
-- Graph client setup in `lib/graph/client.ts`
-- Email operations through Microsoft Graph SDK
-
-### Development Notes
-
-- The project uses Next.js Turbopack for faster development builds
-- ESLint is configured with Next.js core-web-vitals and TypeScript rules
-- The application is designed for email tracking with Microsoft 365 integration
-- Planned features include email tracking, reply checking, and reminder scheduling through cron jobs
+Required in `.env.local`:
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+AZURE_CLIENT_ID=
+AZURE_CLIENT_SECRET=
+AZURE_TENANT_ID=
+```
   
