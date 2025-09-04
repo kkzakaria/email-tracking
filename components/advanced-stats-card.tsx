@@ -15,8 +15,6 @@ interface AdvancedStatsCardProps {
   }
   description?: string
   className?: string
-  showMiniChart?: boolean
-  chartData?: number[]
 }
 
 export function AdvancedStatsCard({
@@ -25,45 +23,21 @@ export function AdvancedStatsCard({
   icon: Icon,
   change,
   description,
-  className,
-  showMiniChart = false,
-  chartData = []
+  className
 }: AdvancedStatsCardProps) {
-  // Créer une mini barre de progression simple
-  const renderMiniChart = () => {
-    if (!showMiniChart || !chartData.length) return null
-    
-    const max = Math.max(...chartData)
-    const normalized = chartData.map(val => (val / max) * 100)
-    
-    return (
-      <div className="flex items-end space-x-0.5 h-6 mt-2">
-        {normalized.map((height, index) => (
-          <div
-            key={index}
-            className="bg-gradient-to-t from-blue-500/80 to-blue-400/60 dark:from-blue-600/80 dark:to-blue-500/60 rounded-sm flex-1 transition-all duration-500"
-            style={{ 
-              height: `${Math.max(height, 8)}%`,
-              minHeight: '2px'
-            }}
-          />
-        ))}
-      </div>
-    )
-  }
 
   return (
     <Card className={cn(
       "group transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1 border-0 bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900/50",
       className
     )}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <div className="space-y-1">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div>
           <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
             {title}
           </CardTitle>
           {description && (
-            <p className="text-xs text-muted-foreground/80">
+            <p className="text-xs text-muted-foreground/80 mt-0.5">
               {description}
             </p>
           )}
@@ -73,7 +47,7 @@ export function AdvancedStatsCard({
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-1">
         <div className="flex items-baseline justify-between">
           <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
             {typeof value === 'number' ? value.toLocaleString('fr-FR') : value}
@@ -104,7 +78,6 @@ export function AdvancedStatsCard({
           </p>
         )}
         
-        {renderMiniChart()}
       </CardContent>
     </Card>
   )
