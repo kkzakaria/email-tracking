@@ -23,48 +23,28 @@ export function DashboardStats({ emailStats, totalEmails }: DashboardStatsProps)
         title="Emails suivis"
         value={totalEmails}
         icon={Mail}
-        description="Total des emails trackés"
-        change={{
-          value: 8.2,
-          period: "vs mois dernier",
-          isPositive: true
-        }}
+        iconColor="text-blue-600 dark:text-blue-400"
       />
       
       <AdvancedStatsCard
         title="En attente"
         value={emailStats.PENDING}
         icon={Clock}
-        description="Emails en attente de réponse"
-        change={{
-          value: 2.4,
-          period: "vs semaine dernière",
-          isPositive: false
-        }}
+        iconColor="text-orange-600 dark:text-orange-400"
       />
       
       <AdvancedStatsCard
         title="Répondus"
         value={emailStats.REPLIED}
         icon={CheckCircle}
-        description="Emails avec réponse reçue"
-        change={{
-          value: 15.3,
-          period: "vs mois dernier",
-          isPositive: true
-        }}
+        iconColor="text-green-600 dark:text-green-400"
       />
       
       <AdvancedStatsCard
         title="Arrêtés"
         value={emailStats.STOPPED}
         icon={StopCircle}
-        description="Trackings arrêtés manuellement"
-        change={{
-          value: 5.1,
-          period: "vs mois dernier",
-          isPositive: false
-        }}
+        iconColor="text-red-600 dark:text-red-400"
       />
     </StatsGrid>
   )

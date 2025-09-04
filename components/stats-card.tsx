@@ -23,55 +23,29 @@ export function StatsCard({
   title,
   value,
   icon: Icon,
-  trend,
-  description,
   className,
   iconClassName,
   valueClassName
 }: StatsCardProps) {
   return (
     <Card className={cn("transition-all duration-200 hover:shadow-md", className)}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <Icon 
-          className={cn(
-            "h-5 w-5 text-muted-foreground",
-            iconClassName
-          )} 
-        />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-1">
-          <div className={cn(
-            "text-3xl font-bold tracking-tight",
+      <CardContent className="py-3 px-4">
+        <div className="flex items-center gap-3">
+          <Icon 
+            className={cn(
+              "h-5 w-5 text-muted-foreground flex-shrink-0",
+              iconClassName
+            )} 
+          />
+          <span className="text-sm font-medium text-muted-foreground flex-1">
+            {title}
+          </span>
+          <span className={cn(
+            "text-xl font-bold",
             valueClassName
           )}>
             {typeof value === 'number' ? value.toLocaleString('fr-FR') : value}
-          </div>
-          
-          {trend && (
-            <div className="flex items-center space-x-1 text-sm">
-              <span className={cn(
-                "flex items-center text-xs font-medium",
-                trend.isPositive 
-                  ? "text-green-600 dark:text-green-400" 
-                  : "text-red-600 dark:text-red-400"
-              )}>
-                {trend.isPositive ? "+" : ""}{trend.value}%
-              </span>
-              <span className="text-muted-foreground text-xs">
-                {trend.label}
-              </span>
-            </div>
-          )}
-          
-          {description && (
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {description}
-            </p>
-          )}
+          </span>
         </div>
       </CardContent>
     </Card>
