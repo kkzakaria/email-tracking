@@ -10,5 +10,11 @@
     "env": {
       "SKIP_ENV_VALIDATION": "1"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/renew-webhooks",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }
