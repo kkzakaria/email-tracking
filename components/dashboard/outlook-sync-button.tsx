@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 export function OutlookSyncButton() {
   const [isLoading, setIsLoading] = useState(false)
@@ -73,14 +75,29 @@ export function OutlookSyncButton() {
 
   return (
     <div className="space-y-3">
-      <button
-        onClick={handleSync}
-        disabled={isLoading}
-        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-        {isLoading ? 'Synchronisation...' : 'Sync Outlook'}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={handleSync}
+            disabled={isLoading}
+            variant="default"
+            size="sm"
+            className="bg-purple-600 hover:bg-purple-700 focus-visible:ring-purple-600/20 text-white"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? 'Synchronisation...' : 'Sync Outlook'}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <p className="text-center">
+            Synchronise automatiquement vos emails Outlook
+            <br />
+            <span className="text-xs opacity-90">
+              Seuls les emails sans réponse sont trackés
+            </span>
+          </p>
+        </TooltipContent>
+      </Tooltip>
 
       {message && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
@@ -97,9 +114,6 @@ export function OutlookSyncButton() {
         </div>
       )}
 
-      <p className="text-xs text-gray-500">
-        Synchronise seulement les emails Outlook <strong>sans réponse</strong> (ceux qui ont besoin de tracking)
-      </p>
     </div>
   )
 }
