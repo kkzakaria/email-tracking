@@ -15,6 +15,11 @@ export interface EmailTracking {
   expires_at?: string
   created_at: string
   updated_at: string
+  // Nouveaux champs ajoutés par la migration 006
+  conversation_id?: string
+  internet_message_id?: string
+  reply_detection_method?: string
+  last_sync_check?: string
 }
 
 export interface EmailTrackingInsert {

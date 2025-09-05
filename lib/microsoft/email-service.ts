@@ -140,38 +140,92 @@ export async function sendTrackedEmail(options: TrackedEmailOptions): Promise<Tr
     
     console.log('✅ Email envoyé avec succès')
     
-    // 5. OPTIONNEL: Récupérer le message ID réel depuis les messages envoyés
-    // (pour une correspondance plus précise)
+    // 5. RÉCUPÉRER les métadonnées réelles depuis les messages envoyés
+    // (essentiel pour le tracking des réponses)
     try {
+      console.log('🔍 Récupération des métadonnées depuis SentItems...')
+      
+      // Attendre un peu que l'email apparaisse dans SentItems
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
       const sentItems = await graphClient
         .api('/me/mailFolders/SentItems/messages')
         .filter(`subject eq '${subject.replace(/'/g, "''")}'`)
+        .select('id,internetMessageId,conversationId,subject,toRecipients,sentDateTime')
         .orderby('sentDateTime desc')
-        .top(1)
+        .top(3)
         .get()
       
-      if (sentItems.value && sentItems.value.length > 0) {
-        const sentMessage = sentItems.value[0]
+      console.log(`📧 ${sentItems.value?.length || 0} emails trouvés dans SentItems`)
+      
+      // Trouver le bon email par destinataire
+      const sentMessage = sentItems.value?.find((msg: any) => 
+        msg.toRecipients?.some((recipient: any) => 
+          recipient.emailAddress?.address === to
+        )
+      )
+      
+      if (sentMessage) {
         const realMessageId = sentMessage.internetMessageId || sentMessage.id
         const conversationId = sentMessage.conversationId
         const internetMessageId = sentMessage.internetMessageId
         
-        console.log('✅ Message ID récupéré:', realMessageId)
-        console.log('✅ Conversation ID récupéré:', conversationId)
-        console.log('✅ Internet Message ID récupéré:', internetMessageId)
+        console.log('✅ Métadonnées récupérées:')
+        console.log('  - Message ID:', realMessageId)
+        console.log('  - Conversation ID:', conversationId)
+        console.log('  - Internet Message ID:', internetMessageId)
         
-        // Mettre à jour le tracking record avec TOUTES les métadonnées critiques
+        // Mettre à jour avec TOUTES les métadonnées
         const { updateEmailTracking } = await import('@/lib/supabase/email-service')
         await updateEmailTracking(realTrackingId, { 
           message_id: realMessageId,
-          // Ajouter les nouveaux champs si la migration 006 est appliquée
-          ...(conversationId && { conversation_id: conversationId }),
-          ...(internetMessageId && { internet_message_id: internetMessageId })
+          conversation_id: conversationId,
+          internet_message_id: internetMessageId,
+          reply_detection_method: 'sent_items_lookup'
         })
+        
+        console.log('✅ Tracking record mis à jour avec les métadonnées complètes')
+      } else {
+        console.log('⚠️ Email non trouvé dans SentItems - recherche par sujet élargie')
+        
+        // Fallback: recherche plus large
+        const broadSearch = await graphClient
+          .api('/me/messages')
+          .search(`subject:"${subject}"`)
+          .select('id,internetMessageId,conversationId,subject,toRecipients,sentDateTime')
+          .top(5)
+          .get()
+        
+        const fallbackMessage = broadSearch.value?.find((msg: any) => 
+          msg.subject === subject &&
+          msg.toRecipients?.some((recipient: any) => 
+            recipient.emailAddress?.address === to
+          )
+        )
+        
+        if (fallbackMessage) {
+          const { updateEmailTracking } = await import('@/lib/supabase/email-service')
+          await updateEmailTracking(realTrackingId, {
+            message_id: fallbackMessage.internetMessageId || fallbackMessage.id,
+            conversation_id: fallbackMessage.conversationId,
+            internet_message_id: fallbackMessage.internetMessageId,
+            reply_detection_method: 'search_fallback'
+          })
+          console.log('✅ Métadonnées récupérées via recherche élargie')
+        }
       }
+      
     } catch (error) {
-      console.log('⚠️ Impossible de récupérer le message ID réel:', error)
-      // Ce n'est pas critique, on continue avec l'ID temporaire
+      console.error('❌ Erreur lors de la récupération des métadonnées:', error)
+      // Marquer comme nécessitant une synchronisation manuelle
+      try {
+        const { updateEmailTracking } = await import('@/lib/supabase/email-service')
+        await updateEmailTracking(realTrackingId, { 
+          reply_detection_method: 'needs_manual_sync'
+        })
+      } catch (updateError) {
+        console.error('❌ Impossible de marquer pour synchronisation manuelle:', updateError)
+      }
     }
     
     return {
