@@ -3,6 +3,7 @@ import { webhookService } from '@/lib/microsoft/webhook-service'
 import { createClient } from '@supabase/supabase-js'
 import { updateEmailTracking } from '@/lib/supabase/email-service'
 import { detectRepliesByConversation, detectRepliesBySubject } from '@/lib/services/reply-detection'
+import { handleWebhookNotification, WebhookNotification } from '@/lib/services/webhook-reply-handler'
 
 // Créer un client Supabase avec la clé de service pour les opérations système
 const supabase = createClient(
@@ -106,9 +107,10 @@ async function processNotificationAsync(notification: any) {
     const result = await webhookService.processNotification(notification)
     console.log('📊 Résultat du traitement:', result)
 
-    // Traiter chaque événement pour mettre à jour les statuts d'emails
+    // Traiter chaque notification avec le nouveau handler
     for (const item of notification.value || []) {
-      await processEmailStatusUpdate(item)
+      const handlerResult = await handleWebhookNotification(item as WebhookNotification)
+      console.log('📊 Résultat du handler:', handlerResult)
     }
 
   } catch (error) {
