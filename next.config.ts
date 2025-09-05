@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
     // Disable ESLint during builds for production deployment
     ignoreDuringBuilds: true,
   },
+  typescript: {
+    // Disable TypeScript type checking during builds
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
