@@ -128,7 +128,7 @@ export class EmailService {
       const message: Message = {
         subject: params.subject,
         body: {
-          contentType: params.isHtml ? "HTML" : "Text",
+          contentType: params.isHtml ? "html" : "text",
           content: params.body,
         },
         toRecipients: params.to.map(email => ({
@@ -169,7 +169,7 @@ export class EmailService {
       const message: Message = {
         subject: params.subject,
         body: {
-          contentType: params.isHtml ? "HTML" : "Text",
+          contentType: params.isHtml ? "html" : "text",
           content: body,
         },
         toRecipients: params.to.map(email => ({

@@ -1,14 +1,7 @@
 "use client"
 
 import { EmailsTable } from "@/components/emails-table"
-
-interface EmailTracking {
-  id: string
-  recipient_email: string
-  subject: string
-  status: string
-  sent_at: string
-}
+import { EmailTracking } from "@/lib/supabase/email-service"
 
 interface EmailsTableWrapperProps {
   data: EmailTracking[]

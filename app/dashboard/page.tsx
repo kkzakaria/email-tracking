@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { getEmailStats, getEmailTrackings } from "@/lib/supabase/email-service";
+import { getEmailStats, getEmailTrackings, EmailTracking } from "@/lib/supabase/email-service";
 import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,17 +25,16 @@ export default async function DashboardPage() {
     EXPIRED: 0
   };
 
-  let emails: Array<{
-    id: string
-    recipient_email: string
-    subject: string
-    status: string
-    sent_at: string
-  }> = [];
+  let emails: EmailTracking[] = [];
 
   try {
     // Récupérer les statistiques
-    emailStats = await getEmailStats();
+    emailStats = await getEmailStats() as {
+      PENDING: number;
+      REPLIED: number;
+      STOPPED: number;
+      EXPIRED: number;
+    };
     
     // Récupérer la liste des emails
     emails = await getEmailTrackings();

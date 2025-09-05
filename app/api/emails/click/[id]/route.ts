@@ -4,10 +4,10 @@ import { createClient } from '@/utils/supabase/server'
 // GET /api/emails/click/[id] - Endpoint de tracking des clics
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const targetUrl = searchParams.get('url')
     
