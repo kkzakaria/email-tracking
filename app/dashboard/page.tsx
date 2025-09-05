@@ -5,6 +5,8 @@ import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
+import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
+import { DashboardActionButtons } from "@/components/dashboard-action-buttons";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -53,6 +55,12 @@ export default async function DashboardPage() {
             emailStats={emailStats} 
             totalEmails={totalEmails} 
           />
+        </div>
+
+        {/* Action Buttons - Always visible */}
+        <div className="flex gap-2 mb-4">
+          <OutlookSyncButton />
+          <DashboardActionButtons />
         </div>
 
         {/* Email Tracking Table */}

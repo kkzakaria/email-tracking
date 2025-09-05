@@ -1,8 +1,6 @@
 "use client"
 
 import { EmailsTable } from "@/components/emails-table"
-import { DashboardActionButtons } from "@/components/dashboard-action-buttons"
-import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button"
 
 interface EmailTracking {
   id: string
@@ -38,12 +36,6 @@ export function EmailsTableWrapper({ data }: EmailsTableWrapperProps) {
       onDelete={handleDelete}
       onStop={handleStop}
       onView={handleView}
-      headerActions={
-        <>
-          <OutlookSyncButton />
-          <DashboardActionButtons />
-        </>
-      }
     />
   );
 }
