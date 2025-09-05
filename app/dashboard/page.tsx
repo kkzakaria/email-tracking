@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getEmailStats, getEmailTrackings, EmailTracking } from "@/lib/supabase/email-service";
 import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
-import { DashboardStats } from "@/components/dashboard-stats";
+import { DashboardStatsRealtime } from "@/components/dashboard-stats-realtime";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { OutlookSyncButton } from "@/components/dashboard/outlook-sync-button";
@@ -50,9 +50,9 @@ export default async function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Statistics Cards */}
         <div className="mb-4">
-          <DashboardStats 
-            emailStats={emailStats} 
-            totalEmails={totalEmails} 
+          <DashboardStatsRealtime 
+            initialStats={emailStats} 
+            initialTotal={totalEmails} 
           />
         </div>
 
@@ -65,7 +65,7 @@ export default async function DashboardPage() {
         {/* Email Tracking Table */}
         <Card>
           <CardContent className="px-6 py-0">
-            <EmailsTableWrapper data={emails} />
+            <EmailsTableWrapper initialData={emails} />
           </CardContent>
         </Card>
         </div>
