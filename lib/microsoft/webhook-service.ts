@@ -124,8 +124,26 @@ export class WebhookService {
         })
 
       if (dbError) {
-        console.error('⚠️ Erreur lors de la sauvegarde en DB:', dbError)
-        // On continue quand même, la subscription est créée
+        console.error('❌ ERREUR CRITIQUE - Sauvegarde DB échouée:', dbError)
+        console.error('   → Code:', dbError.code)
+        console.error('   → Message:', dbError.message)
+        console.error('   → Détails:', dbError.details)
+        
+        // CRITIQUE: Si on ne peut pas sauvegarder en DB, on doit supprimer la subscription Microsoft
+        try {
+          const graphClient = await createGraphClient()
+          if (graphClient) {
+            await graphClient.api(`/subscriptions/${response.id}`).delete()
+            console.log('🧹 Subscription Microsoft supprimée (rollback)')
+          }
+        } catch (rollbackError) {
+          console.error('⚠️ Erreur lors du rollback:', rollbackError)
+        }
+        
+        return {
+          success: false,
+          error: `Impossible de sauvegarder en base de données: ${dbError.message}`
+        }
       }
 
       return {

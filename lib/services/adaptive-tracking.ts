@@ -79,16 +79,9 @@ class AdaptiveTrackingService {
         console.log(`📊 ${activeCount} subscription(s) active(s)`)
         
         if (activeCount === 0) {
-          console.log('⚠️ Aucune subscription active - création automatique...')
-          // Tentative de création automatique
-          try {
-            // Note: Nécessite un userId - à adapter selon votre logique d'auth
-            // await webhookService.createSubscription({...})
-            console.log('💡 Création de subscription nécessaire (manuel)')
-          } catch (error) {
-            console.log('❌ Impossible de créer la subscription automatiquement')
-            this.config.webhookHealthy = false
-          }
+          console.log('⚠️ Aucune subscription active')
+          console.log('💡 Le système permet la création manuelle de subscriptions')
+          // Ne pas marquer comme non healthy - permettre la création de subscriptions
         }
       }
 

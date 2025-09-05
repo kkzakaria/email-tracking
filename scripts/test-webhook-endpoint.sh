@@ -1,41 +1,46 @@
 #!/bin/bash
 
-# Test script pour vérifier l'endpoint webhook Vercel
-WEBHOOK_URL="https://email-tracking-zeta.vercel.app/api/webhooks/outlook"
+# Script pour tester la logique d'enregistrement des souscriptions
+WEBHOOK_URL="https://email-tracking-zeta.vercel.app"
 
-echo "🔍 Test de l'endpoint webhook Vercel..."
-echo "URL: $WEBHOOK_URL"
+echo "🔍 DIAGNOSTIC RAPIDE - ENREGISTREMENT DES SOUSCRIPTIONS"
+echo "======================================================="
 echo
 
-# Test GET pour vérifier que l'endpoint est accessible
-echo "1. Test GET - Vérification de l'accessibilité:"
-curl -s -w "\nStatus: %{http_code}\n" "$WEBHOOK_URL"
+echo "1. TEST DU STATUT SYSTÈME"
+echo "-------------------------"
+echo "Vérification si WEBHOOK_ENABLED=true sur Vercel..."
+curl -s "$WEBHOOK_URL/api/tracking/status" | jq '.' 2>/dev/null || curl -s "$WEBHOOK_URL/api/tracking/status"
+echo
 echo
 
-# Test POST pour valider la structure webhook
-echo "2. Test POST - Validation de la structure:"
-curl -s -w "\nStatus: %{http_code}\n" \
-  -X POST "$WEBHOOK_URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "value": [{
-      "subscriptionId": "test-subscription",
-      "changeType": "created",
-      "resource": "me/mailFolders/inbox/messages/test",
-      "clientState": "secure-webhook-validation-key-2024"
-    }]
-  }'
+echo "2. ANALYSE DU PROBLÈME IDENTIFIÉ"
+echo "--------------------------------"
+echo "Problème détecté dans WebhookService.createSubscription():"
+echo "❌ Ligne 128: 'On continue quand même, la subscription est créée'"
+echo "   → Les erreurs de base de données sont ignorées!"
+echo
+echo "Solutions:"
+echo "✅ 1. Améliorer le logging des erreurs DB"
+echo "✅ 2. Arrêter le processus si la DB échoue"
+echo "✅ 3. Vérifier les permissions Supabase SERVICE_ROLE_KEY"
+echo
 echo
 
-# Test validation token (simulation Microsoft Graph)
-echo "3. Test Validation Token - Simulation Microsoft Graph:"
-curl -s -w "\nStatus: %{http_code}\n" \
-  "$WEBHOOK_URL?validationToken=test-validation-token"
+echo "3. CAUSES PROBABLES"
+echo "==================="
+echo "🔍 Variable WEBHOOK_ENABLED manquante → Système désactivé"
+echo "🔍 SUPABASE_SERVICE_ROLE_KEY manquante → Permissions insuffisantes"  
+echo "🔍 RLS policies trop restrictives → Insertion bloquée"
+echo "🔍 user_id mismatch → Contrainte de clé étrangère"
+echo
 echo
 
-echo "✅ Tests terminés!"
+echo "4. VÉRIFICATIONS IMMÉDIATES"
+echo "============================"
+echo "Vérifiez ces variables sur Vercel:"
+echo "  • WEBHOOK_ENABLED=true"
+echo "  • SUPABASE_SERVICE_ROLE_KEY=[votre_clé_service]"
 echo
-echo "Codes de réponse attendus:"
-echo "- 200: Endpoint accessible et fonctionnel"
-echo "- 202: Notification webhook acceptée"
-echo "- 400/401: Erreur de validation (normal si pas d'authentification)"
+echo "Puis créez une nouvelle souscription et vérifiez les logs Vercel."
+echo "Si l'erreur persiste, les erreurs de DB seront maintenant visibles."
