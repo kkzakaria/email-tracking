@@ -74,7 +74,7 @@ export function OutlookSyncButton() {
   }
 
   return (
-    <div className="space-y-3">
+    <>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -113,7 +113,6 @@ export function OutlookSyncButton() {
           {message.text}
         </div>
       )}
-
-    </div>
+    </>
   )
 }

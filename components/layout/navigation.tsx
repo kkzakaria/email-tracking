@@ -22,11 +22,13 @@ import {
 export function Navigation() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
+    setMounted(true);
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -49,7 +51,8 @@ export function Navigation() {
     return () => subscription.unsubscribe();
   }, [supabase.auth, router]);
 
-  if (loading) {
+  // Avoid hydration mismatch by not rendering differently on server vs client
+  if (!mounted) {
     return (
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -64,8 +67,19 @@ export function Navigation() {
     );
   }
 
-  if (!user) {
-    return null;
+  if (loading || !user) {
+    return (
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-12">
+            <div className="flex items-center">
+              <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <span className="ml-2 text-lg font-bold text-gray-900 dark:text-gray-100">Email Tracking</span>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
   }
 
   const navigation = [
