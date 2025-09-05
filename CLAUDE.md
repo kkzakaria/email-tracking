@@ -54,15 +54,19 @@ app/
 └── login/                # Authentication flow
 
 lib/
-├── supabase/             # Supabase client configurations
-│   ├── client.ts        # Browser client
-│   ├── server.ts        # Server client
-│   └── middleware.ts    # Auth middleware
+├── utils/               # Utility functions and configurations
+│   └── env-validator.ts # Environment variable validation
 ├── microsoft/            # Microsoft Graph integration
 │   ├── graph-helper.ts  # Graph API utilities
 │   ├── email-service.ts # Email operations
 │   └── webhook-service.ts # Webhook subscriptions
 └── services/             # Business logic services
+
+utils/
+└── supabase/            # Supabase client configurations
+    ├── client.ts        # Browser client  
+    ├── server.ts        # Server client
+    └── middleware.ts    # Auth middleware
 
 components/
 ├── ui/                   # shadcn/ui base components
@@ -77,6 +81,9 @@ components/
 - `@/components/ui` - UI component imports
 - `@/lib` - Library and utility imports
 - `@/hooks` - Custom React hooks
+- `@/utils` - Utility imports (specifically `@/lib/utils`)
+
+Note: Supabase clients located in `utils/supabase/` (legacy structure)
 
 #### Database Schema
 
@@ -94,8 +101,8 @@ Run migrations: `supabase db push`
 1. User authenticates via Supabase Auth
 2. Microsoft OAuth tokens stored in Supabase
 3. Graph API client uses tokens from Supabase
-4. Server-side auth via `createClient` from `@/lib/supabase/server`
-5. Client-side auth via `createBrowserClient` from `@/lib/supabase/client`
+4. Server-side auth via `createClient` from `@/utils/supabase/server`
+5. Client-side auth via `createBrowserClient` from `@/utils/supabase/client`
 
 #### Component Patterns
 
@@ -119,6 +126,20 @@ Run migrations: `supabase db push`
 3. **Business Logic**: Add services in `lib/services/`
 4. **API Endpoints**: Create route handlers in `app/api/`
 5. **Testing**: Manual testing via dashboard interface
+6. **Debugging**: Use diagnostic scripts in `scripts/` for webhook troubleshooting
+
+### Diagnostic Scripts
+
+```bash
+# Test webhook endpoints and configuration
+./scripts/test-webhook-endpoint.sh
+
+# Diagnose webhook subscription issues
+./scripts/diagnose-webhook-issues.sh
+
+# Debug subscription storage and renewal
+./scripts/debug-subscriptions.sh
+```
 
 ### Environment Variables
 
@@ -130,5 +151,15 @@ SUPABASE_SERVICE_ROLE_KEY=
 AZURE_CLIENT_ID=
 AZURE_CLIENT_SECRET=
 AZURE_TENANT_ID=
+WEBHOOK_ENABLED=true                    # Enable webhook functionality
+WEBHOOK_ENDPOINT_URL=                   # Production webhook URL
+WEBHOOK_CLIENT_STATE=                   # Security validation key
 ```
+
+### Important Notes
+
+- **Turbopack**: Development and build commands use Turbopack for faster compilation
+- **TypeScript & ESLint**: Build configuration skips type checking and linting for deployment speed (configured in `next.config.ts`)
+- **shadcn/ui**: Components configured with New York style and Lucide icons
+- **Webhook Diagnostics**: Multiple diagnostic scripts available for troubleshooting Microsoft Graph webhook integration
   

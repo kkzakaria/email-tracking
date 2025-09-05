@@ -18,34 +18,41 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ emailStats, totalEmails }: DashboardStatsProps) {
   return (
-    <StatsGrid>
-      <AdvancedStatsCard
-        title="Emails suivis"
-        value={totalEmails}
-        icon={Mail}
-        iconColor="text-blue-600 dark:text-blue-400"
-      />
-      
-      <AdvancedStatsCard
-        title="En attente"
-        value={emailStats.PENDING}
-        icon={Clock}
-        iconColor="text-orange-600 dark:text-orange-400"
-      />
-      
-      <AdvancedStatsCard
-        title="Répondus"
-        value={emailStats.REPLIED}
-        icon={CheckCircle}
-        iconColor="text-green-600 dark:text-green-400"
-      />
-      
-      <AdvancedStatsCard
-        title="Arrêtés"
-        value={emailStats.STOPPED}
-        icon={StopCircle}
-        iconColor="text-red-600 dark:text-red-400"
-      />
-    </StatsGrid>
+    <div className="space-y-4">
+      {/* Titre des statistiques */}
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        Statistiques
+      </h2>
+
+      <StatsGrid>
+        <AdvancedStatsCard
+          title="Emails suivis"
+          value={totalEmails}
+          icon={Mail}
+          iconColor="text-blue-600 dark:text-blue-400"
+        />
+        
+        <AdvancedStatsCard
+          title="En attente"
+          value={emailStats.PENDING}
+          icon={Clock}
+          iconColor="text-orange-600 dark:text-orange-400"
+        />
+        
+        <AdvancedStatsCard
+          title="Répondus"
+          value={emailStats.REPLIED}
+          icon={CheckCircle}
+          iconColor="text-green-600 dark:text-green-400"
+        />
+        
+        <AdvancedStatsCard
+          title="Arrêtés"
+          value={emailStats.STOPPED}
+          icon={StopCircle}
+          iconColor="text-red-600 dark:text-red-400"
+        />
+      </StatsGrid>
+    </div>
   )
 }
