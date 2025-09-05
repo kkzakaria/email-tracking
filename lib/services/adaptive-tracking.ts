@@ -1,5 +1,6 @@
 import { webhookService } from '@/lib/microsoft/webhook-service'
 import { syncOutlookSentEmails } from '@/lib/microsoft/sync-service'
+import { validateWebhookEnvironment, logValidationResult } from '@/lib/utils/env-validator'
 
 interface TrackingConfig {
   webhookEnabled: boolean
@@ -45,29 +46,53 @@ class AdaptiveTrackingService {
     try {
       console.log('🔍 Vérification de la santé des webhooks...')
       
-      // Vérifier l'endpoint
-      const endpointUrl = process.env.WEBHOOK_ENDPOINT_URL
-      if (!endpointUrl) {
-        console.log('⚠️ WEBHOOK_ENDPOINT_URL non configuré')
+      // Validation complète de l'environnement
+      const validation = validateWebhookEnvironment()
+      logValidationResult(validation)
+      
+      if (!validation.isValid) {
+        console.log('❌ Variables d\'environnement manquantes pour les webhooks')
         this.config.webhookHealthy = false
         return false
       }
+      
+      const endpointUrl = process.env.WEBHOOK_ENDPOINT_URL!
 
-      // Test de l'endpoint (si accessible)
+      // Test de l'endpoint (contourner les limitations serverless)
       try {
-        const response = await fetch(endpointUrl, { 
-          method: 'GET',
-          timeout: 5000 
-        } as any)
+        console.log('🔍 Vérification de l\'endpoint:', endpointUrl)
         
-        if (response.ok) {
-          console.log('✅ Endpoint webhook accessible')
-          this.config.webhookHealthy = true
+        // Stratégie adaptée selon l'environnement
+        const isProduction = process.env.NODE_ENV === 'production'
+        const isVercel = process.env.VERCEL === '1'
+        
+        if (isProduction || isVercel) {
+          // En production/Vercel : validation de l'URL seulement (pas de self-fetch)
+          const isValidUrl = endpointUrl.startsWith('https://') && endpointUrl.includes('/api/webhooks/outlook')
+          
+          if (isValidUrl) {
+            console.log('✅ URL webhook valide (validation production)')
+            this.config.webhookHealthy = true
+          } else {
+            throw new Error('URL webhook mal formée')
+          }
         } else {
-          throw new Error(`HTTP ${response.status}`)
+          // En développement local : test de connectivité réel
+          const response = await fetch(endpointUrl, { 
+            method: 'GET',
+            timeout: 5000 
+          } as any)
+          
+          if (response.ok) {
+            console.log('✅ Endpoint webhook accessible (test local)')
+            this.config.webhookHealthy = true
+          } else {
+            throw new Error(`HTTP ${response.status}`)
+          }
         }
+        
       } catch (error) {
-        console.log('❌ Endpoint webhook inaccessible:', error)
+        console.log('❌ Configuration webhook invalide:', error)
         this.config.webhookHealthy = false
       }
 
