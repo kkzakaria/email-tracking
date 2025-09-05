@@ -29,6 +29,9 @@ export interface EmailTrackingUpdate {
   reply_received_at?: string
   stopped_at?: string
   message_id?: string
+  conversation_id?: string
+  internet_message_id?: string
+  reply_detection_method?: string
 }
 
 export async function createEmailTracking(data: EmailTrackingInsert): Promise<EmailTracking> {

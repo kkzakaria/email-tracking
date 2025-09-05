@@ -151,12 +151,23 @@ export async function sendTrackedEmail(options: TrackedEmailOptions): Promise<Tr
         .get()
       
       if (sentItems.value && sentItems.value.length > 0) {
-        const realMessageId = sentItems.value[0].internetMessageId || sentItems.value[0].id
-        console.log('✅ Message ID récupéré:', realMessageId)
+        const sentMessage = sentItems.value[0]
+        const realMessageId = sentMessage.internetMessageId || sentMessage.id
+        const conversationId = sentMessage.conversationId
+        const internetMessageId = sentMessage.internetMessageId
         
-        // Mettre à jour le tracking record avec le vrai message ID
+        console.log('✅ Message ID récupéré:', realMessageId)
+        console.log('✅ Conversation ID récupéré:', conversationId)
+        console.log('✅ Internet Message ID récupéré:', internetMessageId)
+        
+        // Mettre à jour le tracking record avec TOUTES les métadonnées critiques
         const { updateEmailTracking } = await import('@/lib/supabase/email-service')
-        await updateEmailTracking(realTrackingId, { message_id: realMessageId })
+        await updateEmailTracking(realTrackingId, { 
+          message_id: realMessageId,
+          // Ajouter les nouveaux champs si la migration 006 est appliquée
+          ...(conversationId && { conversation_id: conversationId }),
+          ...(internetMessageId && { internet_message_id: internetMessageId })
+        })
       }
     } catch (error) {
       console.log('⚠️ Impossible de récupérer le message ID réel:', error)
