@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { webhookService } from '@/lib/microsoft/webhook-service'
 import { createClient } from '@supabase/supabase-js'
 import { updateEmailTracking } from '@/lib/supabase/email-service'
+import { detectRepliesByConversation, detectRepliesBySubject } from '@/lib/services/reply-detection'
 
 // Créer un client Supabase avec la clé de service pour les opérations système
 const supabase = createClient(
@@ -146,55 +147,53 @@ async function processEmailStatusUpdate(event: any) {
 
     // Si c'est un nouveau message (potentielle réponse)
     if (changeType === 'created' && conversationId) {
-      // Rechercher les emails trackés avec cette conversation ID
-      // Note: Nécessite d'ajouter conversation_id à email_tracking table
+      console.log('🎯 Détection de réponse via conversation_id:', conversationId)
       
-      // Pour l'instant, on peut chercher par subject similaire
-      if (subject) {
-        // Chercher des emails avec un subject similaire qui sont en PENDING
-        const { data: trackedEmails } = await supabase
-          .from('email_tracking')
-          .select('*')
-          .eq('status', 'PENDING')
-          .ilike('subject', `%${subject.replace('RE: ', '').replace('Re: ', '')}%`)
-          .limit(10)
+      // Utiliser le nouveau service de détection amélioré
+      const detectionResults = await detectRepliesByConversation(
+        conversationId,
+        resourceData.id
+      )
 
-        if (trackedEmails && trackedEmails.length > 0) {
-          console.log(`🎯 ${trackedEmails.length} emails trackés trouvés pour mise à jour`)
+      // Logger les résultats de détection
+      for (const result of detectionResults) {
+        await supabase
+          .from('webhook_processing_log')
+          .insert({
+            event_id: event.id || crypto.randomUUID(),
+            action: result.wasReply ? 'reply_detected' : 'no_reply_found',
+            details: {
+              tracking_id: result.emailId,
+              conversation_id: conversationId,
+              detection_method: result.detectionMethod,
+              confidence: result.confidence,
+              reply_time: result.replyTime
+            },
+            success: true,
+            processing_time_ms: Date.now() % 1000
+          })
+      }
 
-          // Vérifier si c'est vraiment une réponse en analysant le contexte
-          for (const email of trackedEmails) {
-            // Si le nouveau message a le même subject (avec RE:) et arrive après l'envoi
-            const isReply = subject.toLowerCase().includes('re:') && 
-                          new Date(resourceData.receivedDateTime) > new Date(email.sent_at)
+      const repliesFound = detectionResults.filter(r => r.wasReply).length
+      if (repliesFound > 0) {
+        console.log(`✅ ${repliesFound} réponse(s) détectée(s) via conversation_id`)
+      } else {
+        console.log('ℹ️ Aucune réponse détectée via conversation_id')
+      }
+    }
 
-            if (isReply) {
-              console.log(`✅ Mise à jour du statut de l'email ${email.id} vers REPLIED`)
-              
-              // Mettre à jour le statut vers REPLIED
-              await updateEmailTracking(email.id, {
-                status: 'REPLIED',
-                reply_received_at: resourceData.receivedDateTime || new Date().toISOString()
-              })
+    // Fallback: détection par subject si pas de conversation_id
+    if (changeType === 'created' && !conversationId && subject) {
+      console.log('🎯 Fallback: détection par subject')
+      
+      const subjectResults = await detectRepliesBySubject(
+        subject,
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 jours
+      )
 
-              // Logger l'action
-              await supabase
-                .from('webhook_processing_log')
-                .insert({
-                  event_id: event.id,
-                  action: 'email_status_updated',
-                  details: {
-                    tracking_id: email.id,
-                    old_status: 'PENDING',
-                    new_status: 'REPLIED',
-                    conversation_id: conversationId
-                  },
-                  success: true,
-                  processing_time_ms: 100
-                })
-            }
-          }
-        }
+      const subjectReplies = subjectResults.filter(r => r.wasReply).length
+      if (subjectReplies > 0) {
+        console.log(`✅ ${subjectReplies} réponse(s) détectée(s) via subject matching`)
       }
     }
 

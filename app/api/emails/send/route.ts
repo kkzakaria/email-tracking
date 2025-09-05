@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { sendTrackedEmail, TrackedEmailOptions } from '@/lib/microsoft/email-service'
 import { isMicrosoftConnected } from '@/lib/microsoft/graph-helper'
+import { getEnhancedEmailService } from '@/lib/graph/enhanced-email-service'
 
 interface SendEmailRequest {
   to: string
