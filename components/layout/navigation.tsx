@@ -10,7 +10,7 @@ import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { ModeToggle } from "@/components/mode-toggle";
 import { CurrentUserAvatar } from "@/components/current-user-avatar";
 import { MicrosoftConnectButton } from "@/components/microsoft-connect-button";
-import { SystemStatusButton } from "@/components/system-status-button";
+import { WebhookStatus } from "@/components/webhook-status";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,7 +123,7 @@ export function Navigation() {
           <div className="flex items-center">
             <div className="flex items-center gap-2">
               <MicrosoftConnectButton />
-              <SystemStatusButton />
+              <WebhookStatus variant="button" />
               <ModeToggle />
               
               <DropdownMenu>

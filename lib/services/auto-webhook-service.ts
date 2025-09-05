@@ -17,6 +17,9 @@ export interface AutoWebhookResult {
  */
 export class AutoWebhookService {
   private supabase: ReturnType<typeof createClient>
+  private static failureCache = new Map<string, number>() // userId -> timestamp of last failure
+  private static readonly COOLDOWN_PERIOD = 5 * 60 * 1000 // 5 minutes en millisecondes
+  private static readonly MAX_FAILURES_BEFORE_COOLDOWN = 3
 
   constructor() {
     this.supabase = createClient(
@@ -26,17 +29,61 @@ export class AutoWebhookService {
   }
 
   /**
+   * Vérifier si l'utilisateur est en période de cooldown après des échecs répétés
+   */
+  private static isInCooldown(userId: string): boolean {
+    const lastFailure = AutoWebhookService.failureCache.get(userId)
+    if (!lastFailure) return false
+
+    const timeSinceFailure = Date.now() - lastFailure
+    if (timeSinceFailure > AutoWebhookService.COOLDOWN_PERIOD) {
+      // Nettoyer le cache si le cooldown est expiré
+      AutoWebhookService.failureCache.delete(userId)
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Enregistrer un échec pour déclencher le cooldown
+   */
+  private static recordFailure(userId: string): void {
+    AutoWebhookService.failureCache.set(userId, Date.now())
+  }
+
+  /**
+   * Nettoyer le cache d'échec après un succès
+   */
+  private static clearFailure(userId: string): void {
+    AutoWebhookService.failureCache.delete(userId)
+  }
+
+  /**
    * Point d'entrée principal : Assure qu'une subscription webhook existe et est active
    * @param userId - ID utilisateur Supabase
    * @returns Résultat de l'opération
    */
   async ensureWebhookSubscription(userId: string): Promise<AutoWebhookResult> {
     try {
+      // Vérifier si on est en période de cooldown
+      if (AutoWebhookService.isInCooldown(userId)) {
+        console.log('🔔 Auto-webhook: Utilisateur en cooldown, skip pour:', userId)
+        return {
+          success: false,
+          action: 'skipped',
+          reason: 'Cooldown actif après échecs répétés'
+        }
+      }
+
       console.log('🔔 Auto-webhook: Vérification pour utilisateur:', userId)
 
       // 1. Vérifier les prérequis
       const prerequisiteCheck = await this.checkPrerequisites(userId)
       if (!prerequisiteCheck.success) {
+        // Enregistrer l'échec pour éviter les retry répétés
+        AutoWebhookService.recordFailure(userId)
+        console.log('🔔 Auto-webhook: Échec prérequis, cooldown activé pour:', userId)
         return prerequisiteCheck
       }
 
@@ -67,10 +114,23 @@ export class AutoWebhookService {
 
       // 3. Aucune subscription active, en créer une nouvelle
       console.log('🆕 Auto-webhook: Création d\'une nouvelle subscription')
-      return await this.createNewSubscription(userId)
+      const result = await this.createNewSubscription(userId)
+      
+      // Si succès, nettoyer le cache d'échec
+      if (result.success) {
+        AutoWebhookService.clearFailure(userId)
+      } else {
+        // Si échec, enregistrer pour activer le cooldown
+        AutoWebhookService.recordFailure(userId)
+      }
+      
+      return result
 
     } catch (error) {
       console.error('❌ Auto-webhook: Erreur générale:', error)
+      // Enregistrer l'échec pour éviter les retry immédiats
+      AutoWebhookService.recordFailure(userId)
+      
       return {
         success: false,
         action: 'skipped',
@@ -122,14 +182,30 @@ export class AutoWebhookService {
       }
     }
 
-    // 3. Vérifier la base de données
+    // 3. Vérifier la base de données et les tables webhook
     try {
-      const { data, error } = await this.supabase
+      // Vérifier d'abord si les tables existent
+      const { data: tables, error: tablesError } = await this.supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_schema', 'public')
+        .in('table_name', ['webhook_subscriptions', 'webhook_events'])
+
+      if (tablesError || !tables || tables.length < 2) {
+        return {
+          success: false,
+          action: 'skipped',
+          reason: 'Tables webhook non disponibles - migration requise'
+        }
+      }
+
+      // Ensuite tester la connectivité
+      const { error: connectError } = await this.supabase
         .from('webhook_subscriptions')
         .select('id')
         .limit(1)
 
-      if (error) {
+      if (connectError) {
         return {
           success: false,
           action: 'skipped',
@@ -140,7 +216,7 @@ export class AutoWebhookService {
       return {
         success: false,
         action: 'skipped',
-        reason: 'Tables webhook non disponibles - migration requise'
+        reason: 'Base de données non accessible - vérifier la configuration'
       }
     }
 
@@ -251,8 +327,8 @@ export class AutoWebhookService {
           .eq('subscription_id', subscriptionId)
           .single()
 
-        if (subscription?.user_id) {
-          return await this.createNewSubscription(subscription.user_id)
+        if (subscription && 'user_id' in subscription && subscription.user_id) {
+          return await this.createNewSubscription(subscription.user_id as string)
         }
 
         return {
@@ -276,21 +352,34 @@ export class AutoWebhookService {
    */
   private async logAutoAction(userId: string, action: string, details: Record<string, unknown>): Promise<void> {
     try {
+      // Vérifier si la table existe avant de tenter le logging
+      const { error: checkError } = await this.supabase
+        .from('webhook_processing_log')
+        .select('id')
+        .limit(1)
+      
+      if (checkError) {
+        // Table n'existe pas ou pas accessible, skip le logging
+        return
+      }
+
+      const logData = {
+        event_id: crypto.randomUUID(),
+        action: `auto_${action}`,
+        details: {
+          user_id: userId,
+          ...details,
+          timestamp: new Date().toISOString()
+        },
+        success: true
+      }
+      
       await this.supabase
         .from('webhook_processing_log')
-        .insert({
-          event_id: crypto.randomUUID(),
-          action: `auto_${action}`,
-          details: {
-            user_id: userId,
-            ...details,
-            timestamp: new Date().toISOString()
-          },
-          success: true
-        })
+        .insert(logData as any)
     } catch (error) {
-      console.log('ℹ️ Impossible de logger l\'action automatique:', error)
       // Ne pas faire échouer l'opération principale pour un problème de logging
+      // et ne pas logger l'erreur pour éviter le spam console
     }
   }
 
@@ -352,6 +441,22 @@ export class AutoWebhookService {
     lastAction?: string
   }> {
     try {
+      // Vérifier si la table existe avant de tenter la requête
+      const { error: checkError } = await this.supabase
+        .from('webhook_processing_log')
+        .select('id')
+        .limit(1)
+      
+      if (checkError) {
+        // Table n'existe pas, retourner stats vides
+        return {
+          totalActions: 0,
+          createdCount: 0,
+          renewedCount: 0,
+          failedCount: 0
+        }
+      }
+
       let query = this.supabase
         .from('webhook_processing_log')
         .select('action, success, created_at')
@@ -364,7 +469,7 @@ export class AutoWebhookService {
 
       const { data: actions } = await query.limit(100)
 
-      if (!actions) {
+      if (!actions || actions.length === 0) {
         return {
           totalActions: 0,
           createdCount: 0,
@@ -373,11 +478,11 @@ export class AutoWebhookService {
         }
       }
 
-      const stats = actions.reduce((acc, action) => {
+      const stats = actions.reduce((acc, action: any) => {
         acc.totalActions++
         if (!action.success) acc.failedCount++
-        if (action.action.includes('created')) acc.createdCount++
-        if (action.action.includes('renewed')) acc.renewedCount++
+        if (action.action && action.action.includes('created')) acc.createdCount++
+        if (action.action && action.action.includes('renewed')) acc.renewedCount++
         return acc
       }, {
         totalActions: 0,
@@ -388,11 +493,13 @@ export class AutoWebhookService {
 
       return {
         ...stats,
-        lastAction: actions[0]?.created_at
+        lastAction: actions.length > 0 && actions[0] && 'created_at' in actions[0] 
+          ? (actions[0] as any).created_at 
+          : undefined
       }
 
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération des stats:', error)
+      // Ne pas logger l'erreur pour éviter le spam console
       return {
         totalActions: 0,
         createdCount: 0,

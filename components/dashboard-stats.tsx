@@ -3,7 +3,6 @@
 import { Mail, Clock, CheckCircle, StopCircle } from "lucide-react"
 import { AdvancedStatsCard } from "@/components/advanced-stats-card"
 import { StatsGrid } from "@/components/stats-card"
-import { WebhookStatusBadge } from "@/components/dashboard/webhook-status-badge"
 
 interface EmailStats {
   PENDING: number
@@ -20,13 +19,10 @@ interface DashboardStatsProps {
 export function DashboardStats({ emailStats, totalEmails }: DashboardStatsProps) {
   return (
     <div className="space-y-4">
-      {/* Indicateur de statut webhook */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Statistiques
-        </h2>
-        <WebhookStatusBadge />
-      </div>
+      {/* Titre des statistiques */}
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        Statistiques
+      </h2>
 
       <StatsGrid>
         <AdvancedStatsCard

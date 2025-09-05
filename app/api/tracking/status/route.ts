@@ -68,23 +68,13 @@ export async function GET(request: NextRequest) {
 
       status.database.connected = true
 
-      // Vérifier si les tables webhook existent (indicateur de migration)
-      const { data: tables, error: tablesError } = await serviceSupabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .in('table_name', ['webhook_subscriptions', 'webhook_events', 'email_tracking'])
-
-      if (!tablesError && tables) {
-        const tableNames = tables.map(t => t.table_name)
-        const hasWebhookTables = tableNames.includes('webhook_subscriptions') && 
-                               tableNames.includes('webhook_events')
-        const hasConversationId = await checkConversationIdColumn(serviceSupabase)
-        
-        status.database.migrationStatus = hasWebhookTables && hasConversationId 
-          ? 'up_to_date' 
-          : 'needs_update'
-      }
+      // Vérifier si les tables webhook existent en testant directement
+      const hasWebhookTables = await checkWebhookTablesExist(serviceSupabase)
+      const hasConversationId = await checkConversationIdColumn(serviceSupabase)
+      
+      status.database.migrationStatus = hasWebhookTables && hasConversationId 
+        ? 'up_to_date' 
+        : 'needs_update'
 
       // Récupérer les statistiques des subscriptions
       if (status.database.migrationStatus === 'up_to_date') {
@@ -172,18 +162,47 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * Vérifier si les tables webhook existent en testant directement
+ */
+async function checkWebhookTablesExist(supabase: ReturnType<typeof createServiceClient>): Promise<boolean> {
+  try {
+    // Tester webhook_subscriptions
+    const { error: subError } = await supabase
+      .from('webhook_subscriptions')
+      .select('id')
+      .limit(1)
+
+    // Tester webhook_events
+    const { error: eventsError } = await supabase
+      .from('webhook_events')
+      .select('id')
+      .limit(1)
+
+    // Tester webhook_processing_log
+    const { error: logError } = await supabase
+      .from('webhook_processing_log')
+      .select('id')
+      .limit(1)
+
+    // Toutes les tables doivent être accessibles (même si vides)
+    return !subError && !eventsError && !logError
+  } catch {
+    return false
+  }
+}
+
+/**
  * Vérifier si la colonne conversation_id existe dans email_tracking
  */
 async function checkConversationIdColumn(supabase: ReturnType<typeof createServiceClient>): Promise<boolean> {
   try {
-    const { data, error } = await supabase
-      .from('information_schema.columns')
-      .select('column_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'email_tracking')
-      .eq('column_name', 'conversation_id')
+    // Tester une requête avec conversation_id pour voir si la colonne existe
+    const { error } = await supabase
+      .from('email_tracking')
+      .select('conversation_id')
+      .limit(1)
 
-    return !error && data && data.length > 0
+    return !error
   } catch {
     return false
   }

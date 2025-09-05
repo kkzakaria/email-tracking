@@ -102,25 +102,34 @@ export async function createGraphClient(): Promise<Client | null> {
       },
     })
 
-    // 🔔 HOOK: Déclencher auto-souscription webhook après connexion Graph réussie
+    // 🔔 HOOK: Déclencher auto-souscription webhook après connexion Graph réussie (avec rate limiting)
     // Ceci assure que les utilisateurs connectés ont automatiquement le tracking temps réel
     try {
       const supabase = await createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
       if (user) {
-        // Exécuter en arrière-plan pour ne pas ralentir la création du client
-        setImmediate(async () => {
-          try {
-            const { AutoWebhookService } = await import('@/lib/services/auto-webhook-service')
-            const autoService = new AutoWebhookService()
-            
-            const webhookResult = await autoService.ensureWebhookSubscription(user.id)
-            console.log(`🔔 Graph auth hook - Webhook ${webhookResult.action}:`, webhookResult.subscriptionId || webhookResult.reason)
-          } catch (hookError) {
-            console.log('ℹ️ Graph auth hook - Auto-webhook non disponible:', hookError)
-          }
-        })
+        // Rate limiting: ne tenter qu'une fois par session ou toutes les 10 minutes
+        const cacheKey = `graph_hook_${user.id}`
+        const lastAttempt = (globalThis as any)[cacheKey]
+        const now = Date.now()
+        
+        if (!lastAttempt || (now - lastAttempt) > 10 * 60 * 1000) { // 10 minutes
+          (globalThis as any)[cacheKey] = now
+          
+          // Exécuter en arrière-plan pour ne pas ralentir la création du client
+          setImmediate(async () => {
+            try {
+              const { AutoWebhookService } = await import('@/lib/services/auto-webhook-service')
+              const autoService = new AutoWebhookService()
+              
+              const webhookResult = await autoService.ensureWebhookSubscription(user.id)
+              console.log(`🔔 Graph auth hook - Webhook ${webhookResult.action}:`, webhookResult.subscriptionId || webhookResult.reason)
+            } catch (hookError) {
+              console.log('ℹ️ Graph auth hook - Auto-webhook non disponible:', hookError)
+            }
+          })
+        }
       }
     } catch (hookError) {
       // Ne pas faire échouer la création du client pour un problème de hook

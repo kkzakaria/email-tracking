@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { CheckCircle, Loader2, RefreshCw, Unlink, User } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { useWebhookStatus } from '@/contexts/webhook-status-context'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +50,7 @@ export function MicrosoftConnectButton() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const { refreshStatus } = useWebhookStatus()
 
   useEffect(() => {
     checkMicrosoftConnection()
@@ -62,6 +64,13 @@ export function MicrosoftConnectButton() {
       const refreshSession = async () => {
         await supabase.auth.refreshSession()
         await checkMicrosoftConnection()
+        
+        // Rafraîchir le statut webhook pour déclencher la souscription automatique
+        setTimeout(() => {
+          console.log('🔄 Rafraîchissement du statut après connexion Microsoft...')
+          refreshStatus()
+        }, 1000)
+        
         // Clean URL
         router.replace('/dashboard')
       }
