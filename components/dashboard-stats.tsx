@@ -3,6 +3,7 @@
 import { Mail, Clock, CheckCircle, StopCircle } from "lucide-react"
 import { AdvancedStatsCard } from "@/components/advanced-stats-card"
 import { StatsGrid } from "@/components/stats-card"
+import { WebhookStatusBadge } from "@/components/dashboard/webhook-status-badge"
 
 interface EmailStats {
   PENDING: number
@@ -18,34 +19,44 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ emailStats, totalEmails }: DashboardStatsProps) {
   return (
-    <StatsGrid>
-      <AdvancedStatsCard
-        title="Emails suivis"
-        value={totalEmails}
-        icon={Mail}
-        iconColor="text-blue-600 dark:text-blue-400"
-      />
-      
-      <AdvancedStatsCard
-        title="En attente"
-        value={emailStats.PENDING}
-        icon={Clock}
-        iconColor="text-orange-600 dark:text-orange-400"
-      />
-      
-      <AdvancedStatsCard
-        title="Répondus"
-        value={emailStats.REPLIED}
-        icon={CheckCircle}
-        iconColor="text-green-600 dark:text-green-400"
-      />
-      
-      <AdvancedStatsCard
-        title="Arrêtés"
-        value={emailStats.STOPPED}
-        icon={StopCircle}
-        iconColor="text-red-600 dark:text-red-400"
-      />
-    </StatsGrid>
+    <div className="space-y-4">
+      {/* Indicateur de statut webhook */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Statistiques
+        </h2>
+        <WebhookStatusBadge />
+      </div>
+
+      <StatsGrid>
+        <AdvancedStatsCard
+          title="Emails suivis"
+          value={totalEmails}
+          icon={Mail}
+          iconColor="text-blue-600 dark:text-blue-400"
+        />
+        
+        <AdvancedStatsCard
+          title="En attente"
+          value={emailStats.PENDING}
+          icon={Clock}
+          iconColor="text-orange-600 dark:text-orange-400"
+        />
+        
+        <AdvancedStatsCard
+          title="Répondus"
+          value={emailStats.REPLIED}
+          icon={CheckCircle}
+          iconColor="text-green-600 dark:text-green-400"
+        />
+        
+        <AdvancedStatsCard
+          title="Arrêtés"
+          value={emailStats.STOPPED}
+          icon={StopCircle}
+          iconColor="text-red-600 dark:text-red-400"
+        />
+      </StatsGrid>
+    </div>
   )
 }

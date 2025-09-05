@@ -110,6 +110,26 @@ export async function POST(request: NextRequest) {
       userId: user.id
     })
     
+    // 🔔 HOOK: Assurer qu'une subscription webhook existe avant l'envoi
+    // Ceci active automatiquement le tracking en temps réel sans intervention utilisateur
+    try {
+      const { AutoWebhookService } = await import('@/lib/services/auto-webhook-service')
+      const autoService = new AutoWebhookService()
+      
+      console.log('🔔 Vérification de la subscription webhook automatique...')
+      const webhookResult = await autoService.ensureWebhookSubscription(user.id)
+      
+      if (webhookResult.success) {
+        console.log(`✅ Webhook auto: ${webhookResult.action} - Subscription ${webhookResult.subscriptionId}`)
+      } else {
+        console.log(`⚠️ Webhook auto: ${webhookResult.action} - ${webhookResult.error || webhookResult.reason}`)
+      }
+    } catch (webhookError) {
+      console.log('ℹ️ Auto-webhook non disponible, continuons avec l\'envoi:', webhookError)
+      // L'échec de création de webhook ne doit pas empêcher l'envoi d'email
+      // Le système fonctionnera en mode synchronisation manuelle
+    }
+    
     // Envoyer l'email tracké
     const result = await sendTrackedEmail(emailOptions)
     
