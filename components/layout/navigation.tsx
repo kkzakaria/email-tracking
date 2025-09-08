@@ -27,6 +27,10 @@ export function Navigation() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Pages où la navigation ne doit pas s'afficher
+  const hiddenRoutes = ['/login', '/error'];
+  const shouldHideNavigation = hiddenRoutes.includes(pathname);
+
   useEffect(() => {
     setMounted(true);
     const getUser = async () => {
@@ -50,6 +54,11 @@ export function Navigation() {
 
     return () => subscription.unsubscribe();
   }, [supabase.auth, router]);
+
+  // Ne pas afficher la navigation sur les pages de connexion/erreur
+  if (shouldHideNavigation) {
+    return null;
+  }
 
   // Avoid hydration mismatch by not rendering differently on server vs client
   if (!mounted) {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Navigation } from "@/components/layout/navigation";
+import { ConditionalMain } from "@/components/layout/conditional-main";
 import { ThemeProvider } from "@/components/theme-provider";
 import { WebhookStatusProvider } from "@/contexts/webhook-status-context";
 import { QueryProvider } from "@/providers/query-client-provider";
@@ -40,9 +41,9 @@ export default function RootLayout({
           >
             <WebhookStatusProvider>
               <Navigation />
-              <main className="pt-12">
+              <ConditionalMain>
                 {children}
-              </main>
+              </ConditionalMain>
             </WebhookStatusProvider>
           </ThemeProvider>
         </QueryProvider>
