@@ -316,10 +316,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Fonction pour enregistrer un email tracké
 CREATE OR REPLACE FUNCTION log_tracked_email(
     p_message_id TEXT,
-    p_internet_message_id TEXT DEFAULT NULL,
-    p_conversation_id TEXT DEFAULT NULL,
     p_subject TEXT,
     p_recipient_email TEXT,
+    p_internet_message_id TEXT DEFAULT NULL,
+    p_conversation_id TEXT DEFAULT NULL,
     p_sender_email TEXT DEFAULT NULL,
     p_sent_at TIMESTAMPTZ DEFAULT NOW()
 )
