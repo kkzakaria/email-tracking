@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Email Tracking - Architecture Supabase
 
-## Getting Started
+Application de suivi d'emails professionnels avec architecture Supabase-centric et Edge Functions autonomes.
 
-First, run the development server:
+## 🏗️ Architecture
+
+**Nouvelle architecture serverless :**
+- ⚡ **Edge Functions Supabase** : Gestion autonome des webhooks et subscriptions Microsoft Graph
+- 🗄️ **PostgreSQL + Triggers** : Détection automatique des réponses via `conversation_id`
+- 🎯 **Frontend Display-Only** : Interface temps réel pour monitoring et statistiques
+- 🔐 **RLS Sécurisé** : Accès contrôlé avec politiques Row Level Security
+
+## 🚀 Démarrage Rapide
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Installation des dépendances
+pnpm install
+
+# Démarrage en développement
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔧 Configuration Supabase
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Base de données
+```bash
+# Appliquer les migrations
+supabase db push
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Edge Functions
+```bash
+# Déployer les fonctions
+supabase functions deploy webhook-handler
+supabase functions deploy subscription-manager
+```
 
-## Learn More
+### 3. Variables d'environnement
+```env
+NEXT_PUBLIC_SUPABASE_URL=votre-url-supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-cle-anon
+SUPABASE_SERVICE_ROLE_KEY=votre-service-role-key
 
-To learn more about Next.js, take a look at the following resources:
+AZURE_CLIENT_ID=votre-app-id
+AZURE_CLIENT_SECRET=votre-secret  
+AZURE_TENANT_ID=votre-tenant-id
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+WEBHOOK_CLIENT_STATE=cle-securite-webhook
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📊 Fonctionnalités
 
-## Deploy on Vercel
+### ✅ Implémentées
+- **Webhooks Microsoft Graph** automatisés via Edge Functions
+- **Détection temps réel** des réponses par triggers PostgreSQL
+- **Gestion autonome** des subscriptions (création, renouvellement, nettoyage)
+- **Interface display-only** avec statistiques live
+- **Sécurité RLS** pour accès authentifié
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 🚧 En Construction (Phase 2)
+- Interface d'envoi d'emails trackés
+- Dashboard avancé avec analytics
+- Notifications temps réel
+- Exports et rapports
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ Stack Technique
+
+- **Framework** : Next.js 15.5 + App Router + Turbopack
+- **Base de données** : Supabase PostgreSQL + Edge Functions
+- **Frontend** : React + TypeScript + Tailwind CSS v4
+- **UI Components** : shadcn/ui (16 composants préservés)
+- **Intégration** : Microsoft Graph API v3
+- **Déploiement** : Vercel (Frontend) + Supabase (Backend)
+
+## 📁 Structure du Projet
+
+```
+├── app/
+│   ├── dashboard/          # Interface principale
+│   ├── login/             # Authentification
+│   ├── maintenance/       # Page de maintenance
+│   └── layout.tsx         # Layout simplifié
+├── components/ui/         # shadcn/ui components (16)
+├── lib/utils.ts          # Utilitaires (cn function)
+├── supabase/
+│   ├── functions/        # Edge Functions
+│   │   ├── webhook-handler/
+│   │   └── subscription-manager/
+│   └── migrations/       # Schema + Triggers + RLS
+└── utils/supabase/       # Clients Supabase
+```
+
+## 🔄 Flux de Données
+
+1. **Webhooks Microsoft** → Edge Function `webhook-handler`
+2. **Messages reçus** → Table `received_messages`
+3. **Trigger PostgreSQL** → Détection automatique via `conversation_id`
+4. **Mise à jour statut** → Table `tracked_emails` (`PENDING` → `REPLIED`)
+5. **Interface temps réel** → Affichage des mises à jour
+
+## 🔐 Sécurité
+
+- **Edge Functions** : Accès complet via `service_role`
+- **Frontend** : Lecture seule via `authenticated` role
+- **RLS Policies** : Sécurité au niveau des lignes
+- **Search Path** : Fonctions PostgreSQL sécurisées
+
+## 🚀 Déploiement
+
+Le projet est configuré pour un déploiement automatique :
+- **Frontend** : Vercel avec intégration Git
+- **Backend** : Supabase Edge Functions + PostgreSQL
+- **Variables** : Configuration via Vercel + Supabase Dashboard
+
+---
+
+**Architecture Supabase-centric** - Système autonome et résilient pour le suivi d'emails professionnels.
