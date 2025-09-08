@@ -78,7 +78,7 @@ export default function ErrorPage({ searchParams }: ErrorPageProps) {
                 asChild 
                 className="w-full h-11 border-slate-200 hover:bg-slate-50"
               >
-                <Link href="mailto:support@yourapp.com?subject=Problème de connexion&body=Erreur: " + encodeURIComponent(errorMessage)}}>
+                <Link href={`mailto:support@yourapp.com?subject=Problème de connexion&body=Erreur: ${encodeURIComponent(errorMessage)}`}>
                   Contacter le support
                 </Link>
               </Button>
