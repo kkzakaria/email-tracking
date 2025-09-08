@@ -69,7 +69,7 @@ const TOKEN_URL = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v
 
 // Configuration OAuth2
 const SCOPES = 'openid profile Mail.Read offline_access'
-const APP_URL = Deno.env.get('NEXT_PUBLIC_APP_URL') || 'http://localhost:3001'
+const APP_URL = Deno.env.get('NEXT_PUBLIC_APP_URL') || 'http://localhost:3000'
 const REDIRECT_URI = `${APP_URL}/auth/microsoft-callback` // Page HTML qui traite le callback
 
 console.log('🔐 Microsoft Auth initialized')
