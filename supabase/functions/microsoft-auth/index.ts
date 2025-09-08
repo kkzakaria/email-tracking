@@ -69,7 +69,8 @@ const TOKEN_URL = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v
 
 // Configuration OAuth2
 const SCOPES = 'openid profile Mail.Read offline_access'
-const REDIRECT_URI = `${SUPABASE_URL}/functions/v1/microsoft-auth?action=callback`
+const APP_URL = Deno.env.get('NEXT_PUBLIC_APP_URL') || 'http://localhost:3001'
+const REDIRECT_URI = `${APP_URL}/auth/microsoft-callback` // Page HTML qui traite le callback
 
 console.log('🔐 Microsoft Auth initialized')
 console.log('📍 Redirect URI:', REDIRECT_URI)
@@ -92,7 +93,7 @@ serve(async (req: Request) => {
 
     // Récupérer l'utilisateur depuis l'en-tête Authorization
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader && !['callback', 'status'].includes(action)) {
+    if (!authHeader && !['callback', 'status', 'authorize'].includes(action)) {
       return createCorsResponse({
         error: 'Authorization header manquant',
         message: 'Token Supabase requis pour cette action'

@@ -134,13 +134,12 @@ export default function MicrosoftOAuth() {
       }
 
       // Étape 1: Obtenir l'URL d'autorisation
-      const authResponse = await supabase.functions.invoke('microsoft-auth', {
+      const authResponse = await supabase.functions.invoke('microsoft-auth?action=authorize', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action: 'authorize' })
+        }
       })
 
       if (authResponse.error) {
@@ -171,14 +170,13 @@ export default function MicrosoftOAuth() {
 
           try {
             // Étape 4: Échanger le code contre des tokens
-            const callbackResponse = await supabase.functions.invoke('microsoft-auth', {
+            const callbackResponse = await supabase.functions.invoke('microsoft-auth?action=callback', {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${session.access_token}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                action: 'callback',
                 code: event.data.code,
                 codeVerifier: authData.codeVerifier
               })
@@ -198,16 +196,13 @@ export default function MicrosoftOAuth() {
             )
 
             // Étape 6: Stocker les tokens chiffrés
-            const storeResponse = await supabase.functions.invoke('microsoft-auth', {
+            const storeResponse = await supabase.functions.invoke('microsoft-auth?action=store', {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${session.access_token}`,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                action: 'store',
-                ...encryptedTokens
-              })
+              body: JSON.stringify(encryptedTokens)
             })
 
             if (storeResponse.error) {
@@ -291,13 +286,12 @@ export default function MicrosoftOAuth() {
         return
       }
 
-      const response = await supabase.functions.invoke('microsoft-auth', {
+      const response = await supabase.functions.invoke('microsoft-auth?action=revoke', {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action: 'revoke' })
+        }
       })
 
       if (response.error) {
