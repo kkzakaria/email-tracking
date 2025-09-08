@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useId, use } from "react"
-import { EyeIcon, EyeOffIcon, Mail } from "lucide-react"
+import { EyeIcon, EyeOffIcon, Mail, LoaderCircleIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -21,8 +21,18 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   const emailId = useId()
   const passwordId = useId()
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
 
   const togglePasswordVisibility = () => setIsPasswordVisible((prev) => !prev)
+  
+  const handleSubmit = async (formData: FormData) => {
+    setIsLoading(true)
+    try {
+      await login(formData)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -60,7 +70,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
           <CardContent className="space-y-6">
             {/* Formulaire de connexion */}
-            <form className="space-y-6">
+            <form action={handleSubmit} className="space-y-6">
               <div className="space-y-4">
                 {/* Email Input - Based on comp-01 */}
                 <div className="*:not-first:mt-2">
@@ -107,10 +117,18 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               </div>
 
               <Button
-                formAction={login}
+                type="submit"
+                disabled={isLoading}
                 className="w-full cursor-pointer"
               >
-                Se connecter
+                {isLoading && (
+                  <LoaderCircleIcon
+                    className="-ms-1 animate-spin"
+                    size={16}
+                    aria-hidden="true"
+                  />
+                )}
+                {isLoading ? "Connexion..." : "Se connecter"}
               </Button>
             </form>
           </CardContent>
