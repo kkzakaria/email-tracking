@@ -1,10 +1,20 @@
-import { signInWithMicrosoft } from './actions'
+import { login, signup } from './actions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Mail, Shield, Zap, BarChart3 } from "lucide-react"
+import { Mail, Shield, Zap, BarChart3, Lock, User } from "lucide-react"
 
-export default function LoginPage() {
+interface LoginPageProps {
+  searchParams: {
+    message?: string
+  }
+}
+
+export default function LoginPage({ searchParams }: LoginPageProps) {
+  const message = searchParams.message
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="w-full max-w-md px-4">
@@ -26,32 +36,67 @@ export default function LoginPage() {
                 Suivez vos emails professionnels et gérez vos réponses en temps réel
               </CardDescription>
             </div>
+
+            {/* Message d'erreur ou d'info */}
+            {message && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">{decodeURIComponent(message)}</p>
+              </div>
+            )}
           </CardHeader>
 
           <CardContent className="space-y-8">
-            {/* Microsoft Login Button */}
-            <form action={signInWithMicrosoft} className="space-y-4">
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-base shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <svg 
-                  className="w-5 h-5 mr-3" 
-                  viewBox="0 0 21 21" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
+            {/* Formulaire de connexion */}
+            <form className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    className="w-full h-11 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="votre@email.com"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Mot de passe
+                  </Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    className="w-full h-11 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button
+                  formAction={login}
+                  className="flex-1 h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                 >
-                  <path fill="#f35325" d="M10 0H0v10h10V0z"/>
-                  <path fill="#81bc06" d="M21 0H11v10h10V0z"/>
-                  <path fill="#05a6f0" d="M10 11H0v10h10V11z"/>
-                  <path fill="#ffba08" d="M21 11H11v10h10V11z"/>
-                </svg>
-                Se connecter avec Microsoft
-              </Button>
-              
-              <p className="text-xs text-center text-slate-500 leading-relaxed">
-                Connexion sécurisée via Microsoft 365 pour accéder à vos emails
-              </p>
+                  Se connecter
+                </Button>
+                <Button
+                  formAction={signup}
+                  variant="outline"
+                  className="flex-1 h-11 border-slate-200 hover:bg-slate-50 font-medium"
+                >
+                  S&apos;inscrire
+                </Button>
+              </div>
             </form>
 
             {/* Features */}
@@ -59,7 +104,7 @@ export default function LoginPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl">
                   <BarChart3 className="w-6 h-6 text-blue-600 mb-2" />
-                  <span className="text-xs font-medium text-slate-700 text-center">Tracking en temps réel</span>
+                  <span className="text-xs font-medium text-slate-700 text-center">Tracking temps réel</span>
                 </div>
                 
                 <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl">
@@ -75,7 +120,7 @@ export default function LoginPage() {
                     Sécurisé & Privé
                   </p>
                   <p className="text-xs text-green-700 leading-relaxed">
-                    Vos données restent dans Microsoft 365. Aucun email n&apos;est stocké sur nos serveurs.
+                    Authentification sécurisée avec chiffrement des données.
                   </p>
                 </div>
               </div>
@@ -84,10 +129,10 @@ export default function LoginPage() {
             {/* Technology Badges */}
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
-                Microsoft Graph
+                Supabase Auth
               </Badge>
               <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200">
-                OAuth 2.0
+                Sécurisé
               </Badge>
               <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
                 Temps réel
@@ -99,8 +144,8 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
-            En vous connectant, vous acceptez l&apos;accès en lecture/écriture à vos emails Microsoft 365 
-            pour le suivi des réponses et l&apos;envoi d&apos;emails trackés.
+            En vous connectant, vous acceptez nos conditions d&apos;utilisation. 
+            L&apos;authentification Microsoft sera demandée dans l&apos;application.
           </p>
         </div>
       </div>
