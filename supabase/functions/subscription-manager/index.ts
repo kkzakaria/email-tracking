@@ -91,7 +91,7 @@ serve(async (req: Request) => {
 // ====================================================================================================
 // CRÉER UNE NOUVELLE SUBSCRIPTION
 // ====================================================================================================
-async function handleCreateSubscription(req: Request): Promise<Response> {
+async function handleCreateSubscription(_req: Request): Promise<Response> {
   try {
     console.log('🆕 Création nouvelle subscription')
 
@@ -192,7 +192,7 @@ async function handleCreateSubscription(req: Request): Promise<Response> {
 // ====================================================================================================
 // RENOUVELER LES SUBSCRIPTIONS EXISTANTES
 // ====================================================================================================
-async function handleRenewSubscriptions(req: Request): Promise<Response> {
+async function handleRenewSubscriptions(_req: Request): Promise<Response> {
   try {
     console.log('🔄 Renouvellement des subscriptions')
 
@@ -321,7 +321,7 @@ async function handleRenewSubscriptions(req: Request): Promise<Response> {
 // ====================================================================================================
 // OBTENIR LE STATUT DES SUBSCRIPTIONS
 // ====================================================================================================
-async function handleGetStatus(req: Request): Promise<Response> {
+async function handleGetStatus(_req: Request): Promise<Response> {
   try {
     console.log('📊 Récupération du statut des subscriptions')
 
@@ -376,7 +376,7 @@ async function handleGetStatus(req: Request): Promise<Response> {
 // ====================================================================================================
 // NETTOYER LES SUBSCRIPTIONS INACTIVES
 // ====================================================================================================
-async function handleCleanupSubscriptions(req: Request): Promise<Response> {
+async function handleCleanupSubscriptions(_req: Request): Promise<Response> {
   try {
     console.log('🧹 Nettoyage des subscriptions inactives')
 
