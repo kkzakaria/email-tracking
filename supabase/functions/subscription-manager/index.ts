@@ -7,6 +7,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { handleCors, createCorsResponse } from '../_shared/cors.ts'
 
 // Types Microsoft Graph
 interface GraphSubscription {
@@ -42,9 +43,28 @@ const WEBHOOK_BASE_URL = `${SUPABASE_URL}/functions/v1/webhook-handler`
 console.log('🔧 Subscription Manager initialized')
 
 serve(async (req: Request) => {
+  // Gérer la requête OPTIONS pour le preflight CORS
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
+
   try {
     const url = new URL(req.url)
-    const action = url.searchParams.get('action') || 'renew'
+    let action = url.searchParams.get('action') || 'status'
+    
+    // Si pas d'action dans l'URL, vérifier le body pour les appels via supabase.functions.invoke
+    if (!url.searchParams.get('action') && req.method === 'POST') {
+      try {
+        const body = await req.json()
+        action = body.action || action
+      } catch (error) {
+        console.log(`📝 Pas de body JSON, utilisation des paramètres URL : ${error}`)
+      }
+    }
+    
+    // Pour les appels GET sans paramètre, action par défaut = status
+    if (req.method === 'GET' && !url.searchParams.get('action')) {
+      action = 'status'
+    }
     
     console.log(`📨 ${req.method} ${req.url}`)
     console.log('🎯 Action demandée:', action)
@@ -66,25 +86,19 @@ serve(async (req: Request) => {
         return await handleCleanupSubscriptions(req)
       
       default:
-        return new Response(JSON.stringify({
+        return createCorsResponse({
           error: 'Action non supportée',
           availableActions: ['create', 'renew', 'status', 'cleanup']
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        })
+        }, { status: 400 })
     }
 
   } catch (error: unknown) {
     console.error('❌ Erreur dans subscription manager:', error)
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 500 })
   }
 })
 
@@ -163,7 +177,7 @@ async function handleCreateSubscription(_req: Request): Promise<Response> {
 
     console.log('✅ Subscription sauvegardée en DB')
 
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       success: true,
       subscription: {
         id: graphSubscription.id,
@@ -172,20 +186,14 @@ async function handleCreateSubscription(_req: Request): Promise<Response> {
         notificationUrl: graphSubscription.notificationUrl
       },
       message: 'Subscription créée avec succès'
-    }), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 201 })
 
   } catch (error: unknown) {
     console.error('❌ Erreur création subscription:', error)
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       error: 'Erreur création subscription',
       message: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 500 })
   }
 }
 
@@ -216,14 +224,11 @@ async function handleRenewSubscriptions(_req: Request): Promise<Response> {
     console.log(`📋 ${subscriptions?.length || 0} subscriptions à renouveler`)
 
     if (!subscriptions || subscriptions.length === 0) {
-      return new Response(JSON.stringify({
+      return createCorsResponse({
         success: true,
         message: 'Aucune subscription à renouveler',
         renewed: 0
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
+      }, { status: 200 })
     }
 
     const accessToken = await getGraphAccessToken()
@@ -295,26 +300,20 @@ async function handleRenewSubscriptions(_req: Request): Promise<Response> {
       }
     }
 
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       success: true,
       message: 'Renouvellement terminé',
       renewed,
       errors,
       total: subscriptions.length
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 200 })
 
   } catch (error: unknown) {
     console.error('❌ Erreur renouvellement subscriptions:', error)
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       error: 'Erreur renouvellement subscriptions',
       message: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 500 })
   }
 }
 
@@ -343,33 +342,38 @@ async function handleGetStatus(_req: Request): Promise<Response> {
 
     // Détails des subscriptions actives
     const { data: activeSubscriptions } = await supabase
-      .from('active_subscriptions')
+      .from('graph_subscriptions')
       .select('*')
+      .eq('is_active', true)
+      .order('expiration_datetime', { ascending: false })
 
-    return new Response(JSON.stringify({
-      success: true,
+    // Formater la réponse pour le composant React
+    const formattedSubscriptions = activeSubscriptions?.map(sub => ({
+      id: sub.subscription_id,
+      resource: sub.resource,
+      expires_at: sub.expiration_datetime,
+      status: new Date(sub.expiration_datetime) > now ? 'active' : 'expired'
+    })) || []
+
+    return createCorsResponse({
+      active: active > 0,
+      count: active,
+      subscriptions: formattedSubscriptions,
+      lastUpdate: new Date().toISOString(),
       statistics: {
         total: stats?.length || 0,
         active,
         expired,
         expiringIn6h
-      },
-      subscriptions: activeSubscriptions || [],
-      timestamp: new Date().toISOString()
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
+      }
+    }, { status: 200 })
 
   } catch (error: unknown) {
     console.error('❌ Erreur statut subscriptions:', error)
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       error: 'Erreur récupération statut',
       message: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 500 })
   }
 }
 
@@ -398,14 +402,11 @@ async function handleCleanupSubscriptions(_req: Request): Promise<Response> {
     console.log(`📋 ${expiredSubscriptions?.length || 0} subscriptions à nettoyer`)
 
     if (!expiredSubscriptions || expiredSubscriptions.length === 0) {
-      return new Response(JSON.stringify({
+      return createCorsResponse({
         success: true,
         message: 'Aucune subscription à nettoyer',
         cleaned: 0
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
+      }, { status: 200 })
     }
 
     const accessToken = await getGraphAccessToken()
@@ -437,25 +438,19 @@ async function handleCleanupSubscriptions(_req: Request): Promise<Response> {
       }
     }
 
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       success: true,
       message: 'Nettoyage terminé',
       cleaned,
       total: expiredSubscriptions.length
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 200 })
 
   } catch (error: unknown) {
     console.error('❌ Erreur nettoyage subscriptions:', error)
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       error: 'Erreur nettoyage subscriptions',
       message: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 500 })
   }
 }
 

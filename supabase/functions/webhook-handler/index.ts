@@ -7,6 +7,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { handleCors, createCorsResponse, corsHeaders } from '../_shared/cors.ts'
 
 // Types Microsoft Graph
 interface WebhookNotification {
@@ -59,6 +60,10 @@ const AZURE_TENANT_ID = Deno.env.get('AZURE_TENANT_ID')!
 console.log('🔧 Webhook Handler initialized')
 
 serve(async (req: Request) => {
+  // Gérer la requête OPTIONS pour le preflight CORS
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
+
   try {
     console.log(`📨 ${req.method} ${req.url}`)
 
@@ -74,7 +79,7 @@ serve(async (req: Request) => {
         status: 200,
         headers: {
           'Content-Type': 'text/plain',
-          'Access-Control-Allow-Origin': '*'
+          ...corsHeaders
         }
       })
     }
@@ -94,64 +99,34 @@ serve(async (req: Request) => {
         console.error('❌ Erreur traitement asynchrone:', error)
       })
 
-      return new Response(JSON.stringify({ 
+      return createCorsResponse({ 
         status: 'accepted',
         message: 'Notification en cours de traitement',
         timestamp: new Date().toISOString()
-      }), {
-        status: 202,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      })
+      }, { status: 202 })
     }
 
     // ================================================================================================
     // HEALTH CHECK
     // ================================================================================================
     if (req.method === 'GET') {
-      return new Response(JSON.stringify({
+      return createCorsResponse({
         status: 'healthy',
         service: 'webhook-handler',
         timestamp: new Date().toISOString(),
         version: '2.0.0-supabase'
-      }), {
-        status: 200,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      })
+      }, { status: 200 })
     }
 
-    // ================================================================================================
-    // OPTIONS (CORS)
-    // ================================================================================================
-    if (req.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Max-Age': '86400'
-        }
-      })
-    }
-
-    return new Response('Method not allowed', { status: 405 })
+    return createCorsResponse('Method not allowed', { status: 405 })
 
   } catch (error: unknown) {
     console.error('❌ Erreur dans webhook handler:', error)
-    return new Response(JSON.stringify({
+    return createCorsResponse({
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    }, { status: 500 })
   }
 })
 

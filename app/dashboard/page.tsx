@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RealtimeProvider } from "@/components/dashboard/realtime-provider";
 import { EmailsDashboardTable } from "@/components/dashboard/emails-dashboard-table";
 import { ModeToggle } from "@/components/mode-toggle";
-import { MailIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon } from "lucide-react";
+import { MailIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, Settings } from "lucide-react";
+import Link from "next/link";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -63,7 +64,16 @@ export default async function DashboardPage() {
                     <h1 className="text-2xl font-bold">Email Tracking</h1>
                   </div>
                 </div>
-                <ModeToggle />
+                <div className="flex items-center space-x-2">
+                  <Link
+                    href="/dashboard/settings"
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Paramètres
+                  </Link>
+                  <ModeToggle />
+                </div>
               </div>
             </div>
           </div>
