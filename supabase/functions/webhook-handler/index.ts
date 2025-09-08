@@ -90,7 +90,7 @@ serve(async (req: Request) => {
       })
 
       // Traitement asynchrone pour répondre rapidement à Microsoft Graph
-      processNotificationAsync(notification).catch(error => {
+      processNotificationAsync(notification).catch((error: unknown) => {
         console.error('❌ Erreur traitement asynchrone:', error)
       })
 
@@ -142,11 +142,11 @@ serve(async (req: Request) => {
 
     return new Response('Method not allowed', { status: 405 })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur dans webhook handler:', error)
     return new Response(JSON.stringify({
       error: 'Internal server error',
-      message: error.message,
+      message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     }), {
       status: 500,
@@ -210,7 +210,7 @@ async function processNotificationAsync(notification: WebhookNotification) {
         console.log('ℹ️ Type de changement ignoré:', item.changeType)
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Erreur pour notification:', error)
       errors++
     }
@@ -283,7 +283,7 @@ async function handleNewMessage(messageId: string, subscriptionId: string) {
     // Note: La détection des réponses se fait automatiquement via le trigger PostgreSQL
     // lors de l'insertion dans received_messages
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur traitement nouveau message:', error)
     throw error
   }
@@ -319,7 +319,7 @@ async function fetchMessageFromGraph(messageId: string): Promise<GraphMessage | 
     const message: GraphMessage = await response.json()
     return message
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur récupération message Graph:', error)
     return null
   }
@@ -351,7 +351,7 @@ async function getGraphAccessToken(): Promise<string | null> {
     const tokenData = await response.json()
     return tokenData.access_token
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur token d\'accès:', error)
     return null
   }

@@ -75,11 +75,11 @@ serve(async (req: Request) => {
         })
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur dans subscription manager:', error)
     return new Response(JSON.stringify({
       error: 'Internal server error',
-      message: error.message,
+      message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     }), {
       status: 500,
@@ -177,11 +177,11 @@ async function handleCreateSubscription(req: Request): Promise<Response> {
       headers: { 'Content-Type': 'application/json' }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur création subscription:', error)
     return new Response(JSON.stringify({
       error: 'Erreur création subscription',
-      message: error.message
+      message: error instanceof Error ? error.message : 'Unknown error'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
@@ -289,7 +289,7 @@ async function handleRenewSubscriptions(req: Request): Promise<Response> {
         console.log(`✅ Subscription ${subscription.subscription_id} renouvelée jusqu'au ${newExpirationDate.toISOString()}`)
         renewed++
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`❌ Erreur renouvellement ${subscription.subscription_id}:`, error)
         errors++
       }
@@ -306,11 +306,11 @@ async function handleRenewSubscriptions(req: Request): Promise<Response> {
       headers: { 'Content-Type': 'application/json' }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur renouvellement subscriptions:', error)
     return new Response(JSON.stringify({
       error: 'Erreur renouvellement subscriptions',
-      message: error.message
+      message: error instanceof Error ? error.message : 'Unknown error'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
@@ -361,11 +361,11 @@ async function handleGetStatus(req: Request): Promise<Response> {
       headers: { 'Content-Type': 'application/json' }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur statut subscriptions:', error)
     return new Response(JSON.stringify({
       error: 'Erreur récupération statut',
-      message: error.message
+      message: error instanceof Error ? error.message : 'Unknown error'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
@@ -432,7 +432,7 @@ async function handleCleanupSubscriptions(req: Request): Promise<Response> {
         console.log(`✅ Subscription ${subscription.subscription_id} nettoyée`)
         cleaned++
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`❌ Erreur nettoyage ${subscription.subscription_id}:`, error)
       }
     }
@@ -447,11 +447,11 @@ async function handleCleanupSubscriptions(req: Request): Promise<Response> {
       headers: { 'Content-Type': 'application/json' }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur nettoyage subscriptions:', error)
     return new Response(JSON.stringify({
       error: 'Erreur nettoyage subscriptions',
-      message: error.message
+      message: error instanceof Error ? error.message : 'Unknown error'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
@@ -487,7 +487,7 @@ async function getGraphAccessToken(): Promise<string | null> {
     const tokenData = await response.json()
     return tokenData.access_token
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Erreur token d\'accès:', error)
     return null
   }
@@ -509,7 +509,7 @@ async function deleteGraphSubscription(accessToken: string, subscriptionId: stri
     } else {
       console.error(`❌ Erreur suppression Graph ${subscriptionId}:`, response.status)
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`❌ Erreur suppression subscription ${subscriptionId}:`, error)
   }
 }
