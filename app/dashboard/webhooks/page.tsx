@@ -122,7 +122,7 @@ export default function WebhooksPage() {
                 ⚡ Avantages de l'architecture Supabase :
               </p>
               <div className="grid md:grid-cols-2 gap-3 text-blue-700 dark:text-blue-300 text-sm">
-                <div>• Webhooks traités en <200ms</div>
+                <div>• Webhooks traités en &lt;200ms</div>
                 <div>• Subscriptions auto-renouvelées</div>
                 <div>• Détection instantanée des réponses</div>
                 <div>• Résilience et haute disponibilité</div>

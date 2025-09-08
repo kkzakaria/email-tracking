@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubscriptionManager } from "@/components/dashboard/subscription-manager";
+import MicrosoftOAuth from "@/components/dashboard/microsoft-oauth";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -35,15 +36,20 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        {/* Subscription Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscriptions Microsoft Graph</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SubscriptionManager />
-          </CardContent>
-        </Card>
+        {/* Microsoft OAuth Connection */}
+        <div className="space-y-6">
+          <MicrosoftOAuth />
+          
+          {/* Subscription Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Subscriptions Microsoft Graph</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SubscriptionManager />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

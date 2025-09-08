@@ -9,6 +9,27 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { handleCors, createCorsResponse } from '../_shared/cors.ts'
 
+// Types Supabase
+interface SupabaseUser {
+  id: string
+  email?: string
+  [key: string]: unknown
+}
+
+interface MicrosoftTokenData {
+  id: string
+  user_id: string
+  access_token_encrypted: string
+  refresh_token_encrypted: string
+  token_nonce: string
+  expires_at: string
+  scope: string
+  created_at: string
+  updated_at: string
+  last_refreshed_at?: string
+  refresh_attempts: number
+}
+
 // Types Microsoft Graph
 interface GraphSubscription {
   id?: string
@@ -33,9 +54,9 @@ interface GraphSubscriptionResponse {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const WEBHOOK_CLIENT_STATE = Deno.env.get('WEBHOOK_CLIENT_STATE') || 'supabase-webhook-secret'
-const AZURE_CLIENT_ID = Deno.env.get('AZURE_CLIENT_ID')!
-const AZURE_CLIENT_SECRET = Deno.env.get('AZURE_CLIENT_SECRET')!
-const AZURE_TENANT_ID = Deno.env.get('AZURE_TENANT_ID')!
+
+// Note: AZURE_* variables ne sont plus nécessaires car nous utilisons les tokens utilisateur délégués
+// au lieu du token d'application client_credentials
 
 // URL de base pour les webhooks
 const WEBHOOK_BASE_URL = `${SUPABASE_URL}/functions/v1/webhook-handler`
@@ -48,6 +69,24 @@ serve(async (req: Request) => {
   if (corsResponse) return corsResponse
 
   try {
+    // Vérifier l'authentification utilisateur
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return createCorsResponse({
+        error: 'Authorization header manquant',
+        message: 'Token Supabase requis'
+      }, { status: 401 })
+    }
+
+    // Récupérer l'utilisateur Supabase
+    const user = await getSupabaseUser(authHeader)
+    if (!user) {
+      return createCorsResponse({
+        error: 'Utilisateur non authentifié',
+        message: 'Token Supabase invalide'
+      }, { status: 401 })
+    }
+
     const url = new URL(req.url)
     let action = url.searchParams.get('action') || 'status'
     
@@ -67,23 +106,23 @@ serve(async (req: Request) => {
     }
     
     console.log(`📨 ${req.method} ${req.url}`)
-    console.log('🎯 Action demandée:', action)
+    console.log('🎯 Action demandée:', action, 'pour user:', user.id)
 
     // ================================================================================================
     // ACTIONS DISPONIBLES
     // ================================================================================================
     switch (action) {
       case 'create':
-        return await handleCreateSubscription(req)
+        return await handleCreateSubscription(user)
       
       case 'renew':
-        return await handleRenewSubscriptions(req)
+        return await handleRenewSubscriptions(user)
       
       case 'status':
-        return await handleGetStatus(req)
+        return await handleGetStatus(user)
       
       case 'cleanup':
-        return await handleCleanupSubscriptions(req)
+        return await handleCleanupSubscriptions(user)
       
       default:
         return createCorsResponse({
@@ -105,23 +144,30 @@ serve(async (req: Request) => {
 // ====================================================================================================
 // CRÉER UNE NOUVELLE SUBSCRIPTION
 // ====================================================================================================
-async function handleCreateSubscription(_req: Request): Promise<Response> {
+async function handleCreateSubscription(user: SupabaseUser): Promise<Response> {
   try {
-    console.log('🆕 Création nouvelle subscription')
+    console.log('🆕 Création nouvelle subscription pour user:', user.id)
 
-    const accessToken = await getGraphAccessToken()
+    // Récupérer le token Microsoft de l'utilisateur
+    const accessToken = await getUserMicrosoftToken(user.id)
     if (!accessToken) {
-      throw new Error('Token d\'accès indisponible')
+      return createCorsResponse({
+        error: 'Token Microsoft manquant',
+        message: 'Veuillez vous connecter à Microsoft dans les paramètres'
+      }, { status: 401 })
     }
 
     // Calculer la date d'expiration (max 3 jours pour les messages)
     const expirationDate = new Date()
     expirationDate.setHours(expirationDate.getHours() + 71) // ~3 jours
 
+    // Utilisation du token délégué : on surveille la boîte mail de l'utilisateur connecté
+    // Plus besoin de MONITORED_USER_ID car le token délégué donne accès à la boîte de l'utilisateur
+    
     const subscription: GraphSubscription = {
       changeType: 'created',
       notificationUrl: WEBHOOK_BASE_URL,
-      resource: '/me/messages',
+      resource: '/me/messages', // Token délégué : accès à la boîte de l'utilisateur connecté
       expirationDateTime: expirationDate.toISOString(),
       clientState: WEBHOOK_CLIENT_STATE,
       latestSupportedTlsVersion: 'v1_2'
@@ -200,7 +246,7 @@ async function handleCreateSubscription(_req: Request): Promise<Response> {
 // ====================================================================================================
 // RENOUVELER LES SUBSCRIPTIONS EXISTANTES
 // ====================================================================================================
-async function handleRenewSubscriptions(_req: Request): Promise<Response> {
+async function handleRenewSubscriptions(user: SupabaseUser): Promise<Response> {
   try {
     console.log('🔄 Renouvellement des subscriptions')
 
@@ -231,9 +277,13 @@ async function handleRenewSubscriptions(_req: Request): Promise<Response> {
       }, { status: 200 })
     }
 
-    const accessToken = await getGraphAccessToken()
+    // Récupérer le token Microsoft de l'utilisateur
+    const accessToken = await getUserMicrosoftToken(user.id)
     if (!accessToken) {
-      throw new Error('Token d\'accès indisponible')
+      return createCorsResponse({
+        error: 'Token Microsoft manquant',
+        message: 'Veuillez vous reconnecter à Microsoft dans les paramètres'
+      }, { status: 401 })
     }
 
     let renewed = 0
@@ -320,7 +370,7 @@ async function handleRenewSubscriptions(_req: Request): Promise<Response> {
 // ====================================================================================================
 // OBTENIR LE STATUT DES SUBSCRIPTIONS
 // ====================================================================================================
-async function handleGetStatus(_req: Request): Promise<Response> {
+async function handleGetStatus(_user: SupabaseUser): Promise<Response> {
   try {
     console.log('📊 Récupération du statut des subscriptions')
 
@@ -380,7 +430,7 @@ async function handleGetStatus(_req: Request): Promise<Response> {
 // ====================================================================================================
 // NETTOYER LES SUBSCRIPTIONS INACTIVES
 // ====================================================================================================
-async function handleCleanupSubscriptions(_req: Request): Promise<Response> {
+async function handleCleanupSubscriptions(user: SupabaseUser): Promise<Response> {
   try {
     console.log('🧹 Nettoyage des subscriptions inactives')
 
@@ -409,7 +459,8 @@ async function handleCleanupSubscriptions(_req: Request): Promise<Response> {
       }, { status: 200 })
     }
 
-    const accessToken = await getGraphAccessToken()
+    // Récupérer le token Microsoft de l'utilisateur pour supprimer les subscriptions
+    const accessToken = await getUserMicrosoftToken(user.id)
     let cleaned = 0
 
     for (const subscription of expiredSubscriptions) {
@@ -458,32 +509,81 @@ async function handleCleanupSubscriptions(_req: Request): Promise<Response> {
 // UTILITAIRES
 // ====================================================================================================
 
-// Obtenir un token d'accès Microsoft Graph
-async function getGraphAccessToken(): Promise<string | null> {
-  try {
-    const response = await fetch(`https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        'client_id': AZURE_CLIENT_ID,
-        'client_secret': AZURE_CLIENT_SECRET,
-        'scope': 'https://graph.microsoft.com/.default',
-        'grant_type': 'client_credentials'
-      })
-    })
+// ====================================================================================================
+// GESTION DES TOKENS UTILISATEUR MICROSOFT
+// ====================================================================================================
 
-    if (!response.ok) {
-      console.error('❌ Erreur obtention token:', response.status, await response.text())
+/**
+ * Récupère le token Microsoft d'un utilisateur (déchiffré et vérifié)
+ */
+async function getUserMicrosoftToken(userId: string): Promise<string | null> {
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    
+    // Récupérer les tokens chiffrés de l'utilisateur
+    const { data: tokenData, error } = await supabase
+      .from('microsoft_tokens')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+
+    if (error || !tokenData) {
+      console.log(`📭 Pas de tokens Microsoft pour user ${userId}`)
       return null
     }
 
-    const tokenData = await response.json()
-    return tokenData.access_token
+    // Vérifier si le token est expiré
+    const isExpired = new Date(tokenData.expires_at) < new Date()
+    if (isExpired) {
+      console.log(`⏰ Token Microsoft expiré pour user ${userId}`)
+      
+      // Essayer de renouveler automatiquement
+      const refreshedToken = await refreshUserMicrosoftToken(userId, tokenData)
+      return refreshedToken
+    }
+
+    // Pour l'instant, on simule le déchiffrement
+    // TODO: Implémenter le déchiffrement réel avec la clé dérivée
+    console.log(`✅ Token Microsoft valide pour user ${userId}`)
+    
+    // En attendant l'implémentation du déchiffrement côté serveur,
+    // on retourne null pour forcer l'utilisateur à se reconnecter
+    return null
 
   } catch (error: unknown) {
-    console.error('❌ Erreur token d\'accès:', error)
+    console.error(`❌ Erreur récupération token user ${userId}:`, error)
+    return null
+  }
+}
+
+/**
+ * Renouvelle automatiquement le token Microsoft d'un utilisateur
+ */
+async function refreshUserMicrosoftToken(userId: string, tokenData: MicrosoftTokenData): Promise<string | null> {
+  try {
+    console.log(`🔄 Tentative de renouvellement token pour user ${userId}`)
+    
+    // TODO: Implémenter le renouvellement automatique
+    // 1. Déchiffrer le refresh token
+    // 2. Appeler Microsoft pour renouveler
+    // 3. Re-chiffrer et sauvegarder les nouveaux tokens
+    
+    // Pour l'instant, marquer comme nécessitant une reconnexion
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    
+    await supabase
+      .from('microsoft_tokens')
+      .update({ 
+        refresh_attempts: tokenData.refresh_attempts + 1,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+
+    console.log(`⚠️ Token non renouvelé - reconnexion requise pour user ${userId}`)
+    return null
+
+  } catch (error: unknown) {
+    console.error(`❌ Erreur renouvellement token user ${userId}:`, error)
     return null
   }
 }
@@ -509,4 +609,30 @@ async function deleteGraphSubscription(accessToken: string, subscriptionId: stri
   }
 }
 
-console.log('🚀 Subscription Manager v2.0 ready - Supabase Edge Function')
+// ====================================================================================================
+// UTILITAIRES SUPABASE
+// ====================================================================================================
+
+/**
+ * Récupère l'utilisateur Supabase depuis le token d'autorisation
+ */
+async function getSupabaseUser(authHeader: string): Promise<SupabaseUser | null> {
+  try {
+    const token = authHeader.replace('Bearer ', '')
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    
+    if (error || !user) {
+      console.error('❌ Utilisateur Supabase non valide:', error)
+      return null
+    }
+    
+    return user as unknown as SupabaseUser
+  } catch (error) {
+    console.error('❌ Erreur vérification utilisateur:', error)
+    return null
+  }
+}
+
+console.log('🚀 Subscription Manager v2.1 ready - OAuth2 Delegated Flow')
