@@ -1,9 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardStatsRealtime } from "@/components/dashboard-stats-realtime";
-import { EmailsTableWrapper } from "@/components/emails-table-wrapper";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RealtimeProvider } from "@/components/dashboard/realtime-provider";
+import { EmailsDashboardTable } from "@/components/dashboard/emails-dashboard-table";
+import { ModeToggle } from "@/components/mode-toggle";
+import { MailIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon } from "lucide-react";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -14,37 +16,34 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Récupérer les statistiques depuis la vue email_stats
-  let emailStats = {
-    pending_emails: 0,
-    replied_emails: 0,
-    failed_emails: 0,
-    expired_emails: 0,
-    total_emails: 0
+  let emails: any[] = [];
+  let stats = {
+    pending: 0,
+    replied: 0,  
+    failed: 0,
+    expired: 0,
+    total: 0
   };
 
-  let emails: any[] = [];
-
   try {
-    // Statistiques depuis la nouvelle vue
-    const { data: stats } = await supabase
-      .from('email_stats')
-      .select('*')
-      .single();
-    
-    if (stats) {
-      emailStats = stats;
-    }
-    
-    // Récupérer les emails trackés
+    // Récupérer les emails trackés pour l'initialisation
     const { data: emailData } = await supabase
       .from('tracked_emails')
       .select('*')
       .order('sent_at', { ascending: false })
-      .limit(100);
+      .limit(1000);
       
     if (emailData) {
       emails = emailData;
+      
+      // Calculer les stats depuis les données
+      stats = {
+        pending: emailData.filter(e => e.status === 'PENDING').length,
+        replied: emailData.filter(e => e.status === 'REPLIED').length,
+        failed: emailData.filter(e => e.status === 'FAILED').length,
+        expired: emailData.filter(e => e.status === 'EXPIRED').length,
+        total: emailData.length
+      };
     }
   } catch (error) {
     console.error('Erreur lors de la récupération des données:', error);
@@ -52,29 +51,88 @@ export default async function DashboardPage() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          {/* Statistics Cards */}
-          <div className="mb-4">
-            <DashboardStatsRealtime 
-              initialStats={{
-                PENDING: emailStats.pending_emails,
-                REPLIED: emailStats.replied_emails,
-                FAILED: emailStats.failed_emails,
-                EXPIRED: emailStats.expired_emails
-              }} 
-              initialTotal={emailStats.total_emails} 
-            />
+      <RealtimeProvider initialEmails={emails}>
+        <div className="min-h-screen bg-background">
+          {/* Header */}
+          <div className="border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center py-4">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <MailIcon className="h-6 w-6 text-primary" />
+                    <h1 className="text-2xl font-bold">Email Tracking</h1>
+                  </div>
+                </div>
+                <ModeToggle />
+              </div>
+            </div>
           </div>
 
-          {/* Email Tracking Table - Display Only */}
-          <Card>
-            <CardContent className="px-6 py-0">
-              <EmailsTableWrapper initialData={emails} />
-            </CardContent>
-          </Card>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total</CardTitle>
+                  <MailIcon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.total}</div>
+                  <p className="text-xs text-muted-foreground">emails envoyés</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">En attente</CardTitle>
+                  <ClockIcon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                  <p className="text-xs text-muted-foreground">en cours de suivi</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Répondus</CardTitle>
+                  <CheckCircleIcon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{stats.replied}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.total > 0 ? Math.round((stats.replied / stats.total) * 100) : 0}% de taux de réponse
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Échecs</CardTitle>
+                  <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">{stats.failed + stats.expired}</div>
+                  <p className="text-xs text-muted-foreground">erreurs + expirés</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Email Tracking Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Emails suivis</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Tableau des emails envoyés avec suivi en temps réel
+                </p>
+              </CardHeader>
+              <CardContent className="px-6 py-0">
+                <EmailsDashboardTable />
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </RealtimeProvider>
     </TooltipProvider>
   );
 }
