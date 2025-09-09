@@ -21,6 +21,13 @@ export interface MicrosoftTokens {
   scope: string
 }
 
+// Type pour la réponse du callback OAuth
+export interface TokenResponse {
+  success: boolean
+  tokens: MicrosoftTokens
+  message: string
+}
+
 // ====================================================================================================
 // FRONTEND - Chiffrement côté client
 // ====================================================================================================

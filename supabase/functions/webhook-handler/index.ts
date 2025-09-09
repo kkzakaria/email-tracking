@@ -8,8 +8,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { handleCors, createCorsResponse, corsHeaders } from '../_shared/cors.ts'
+// Les fonctions de chiffrement sont maintenant intégrées dans chaque Edge Function
 
 // Types Microsoft Graph
+interface MicrosoftTokenData {
+  id: string
+  user_id: string  // Ajout du user_id manquant
+  access_token_encrypted: string
+  refresh_token_encrypted: string
+  token_nonce: string
+  expires_at: string
+  created_at?: string
+  updated_at?: string
+  token_scope?: string
+  scope?: string  // Alias pour token_scope
+}
+
 interface WebhookNotification {
   value: Array<{
     subscriptionId: string
@@ -301,10 +315,84 @@ async function fetchMessageFromGraph(messageId: string): Promise<GraphMessage | 
 }
 
 // ====================================================================================================
-// OBTENIR UN TOKEN D'ACCÈS MICROSOFT GRAPH
+// OBTENIR UN TOKEN D'ACCÈS MICROSOFT GRAPH (User Token)
 // ====================================================================================================
 async function getGraphAccessToken(): Promise<string | null> {
   try {
+    console.log('🔑 Récupération du token utilisateur depuis la base de données')
+    
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    
+    // Récupérer le token utilisateur le plus récent
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('microsoft_tokens')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (tokenError || !tokenData) {
+      console.error('❌ Aucun token utilisateur trouvé:', tokenError)
+      return null
+    }
+
+    console.log('✅ Token utilisateur trouvé, vérification expiration')
+
+    // Vérifier si le token est expiré
+    if (isTokenExpired(tokenData.expires_at)) {
+      console.log('⚠️ Token expiré, tentative de refresh')
+      return await refreshUserToken(tokenData)
+    }
+
+    // Décrypter les tokens avec la même méthode que le frontend
+    console.log('🔓 Déchiffrement du token d\'accès...')
+    const serverSalt = `${tokenData.user_id}-encryption-salt-2024`
+    const decryptedTokens = await decryptUserTokens({
+      accessTokenEncrypted: tokenData.access_token_encrypted,
+      refreshTokenEncrypted: tokenData.refresh_token_encrypted,
+      nonce: tokenData.token_nonce,
+      expiresAt: tokenData.expires_at,
+      scope: tokenData.token_scope || ''
+    }, tokenData.user_id, serverSalt)
+
+    if (!decryptedTokens) {
+      console.error('❌ Impossible de déchiffrer les tokens')
+      return null
+    }
+
+    console.log('✅ Token d\'accès déchiffré avec succès')
+    return decryptedTokens.accessToken
+
+  } catch (error: unknown) {
+    console.error('❌ Erreur récupération token utilisateur:', error)
+    return null
+  }
+}
+
+// ====================================================================================================
+// REFRESH TOKEN UTILISATEUR
+// ====================================================================================================
+async function refreshUserToken(tokenData: MicrosoftTokenData): Promise<string | null> {
+  try {
+    console.log('🔄 Refresh du token utilisateur')
+
+    // Décrypter le refresh token avec la même méthode que le frontend
+    const serverSalt = `${tokenData.user_id}-encryption-salt-2024`
+    const decryptedTokens = await decryptUserTokens({
+      accessTokenEncrypted: tokenData.access_token_encrypted,
+      refreshTokenEncrypted: tokenData.refresh_token_encrypted,
+      nonce: tokenData.token_nonce,
+      expiresAt: tokenData.expires_at,
+      scope: tokenData.token_scope || ''
+    }, tokenData.user_id, serverSalt)
+
+    if (!decryptedTokens) {
+      console.error('❌ Impossible de déchiffrer les tokens pour refresh')
+      return null
+    }
+
+    const refreshToken = decryptedTokens.refreshToken
+
     const response = await fetch(`https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token`, {
       method: 'POST',
       headers: {
@@ -313,21 +401,252 @@ async function getGraphAccessToken(): Promise<string | null> {
       body: new URLSearchParams({
         'client_id': AZURE_CLIENT_ID,
         'client_secret': AZURE_CLIENT_SECRET,
-        'scope': 'https://graph.microsoft.com/.default',
-        'grant_type': 'client_credentials'
+        'grant_type': 'refresh_token',
+        'refresh_token': refreshToken,
+        'scope': 'User.Read Mail.Read offline_access'
       })
     })
 
     if (!response.ok) {
-      console.error('❌ Erreur obtention token:', response.status, await response.text())
+      console.error('❌ Erreur refresh token:', response.status, await response.text())
       return null
     }
 
-    const tokenData = await response.json()
-    return tokenData.access_token
+    const newTokenData = await response.json()
+    
+    // Chiffrer les nouveaux tokens
+    const encryptedTokens = await encryptTokensForStorage(
+      newTokenData.access_token,
+      newTokenData.refresh_token || refreshToken,
+      tokenData.user_id
+    )
+
+    if (!encryptedTokens) {
+      console.error('❌ Impossible de chiffrer les nouveaux tokens')
+      return null
+    }
+    
+    // Mettre à jour le token en base
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const expiresAt = getNewExpiresAt(newTokenData.expires_in)
+
+    await supabase
+      .from('microsoft_tokens')
+      .update({
+        access_token_encrypted: encryptedTokens.accessTokenEncrypted,
+        refresh_token_encrypted: encryptedTokens.refreshTokenEncrypted,
+        token_nonce: encryptedTokens.nonce,
+        expires_at: expiresAt,
+        token_scope: newTokenData.scope,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', tokenData.id)
+
+    console.log('✅ Token rafraîchi et chiffré avec succès')
+    return newTokenData.access_token
 
   } catch (error: unknown) {
-    console.error('❌ Erreur token d\'accès:', error)
+    console.error('❌ Erreur refresh token:', error)
+    return null
+  }
+}
+
+// ====================================================================================================
+// FONCTIONS DE CHIFFREMENT COMPATIBLES AVEC LE FRONTEND  
+// ====================================================================================================
+
+// Types pour les tokens chiffrés (compatibles avec frontend)
+interface EncryptedTokens {
+  accessTokenEncrypted: string
+  refreshTokenEncrypted: string
+  nonce: string
+  expiresAt: string
+  scope: string
+}
+
+interface MicrosoftTokens {
+  accessToken: string
+  refreshToken: string
+  expiresAt: string
+  scope: string
+}
+
+/**
+ * Dérive une clé de chiffrement unique pour chaque utilisateur (compatible frontend)
+ */
+async function deriveEncryptionKey(userId: string, serverSalt: string): Promise<ArrayBuffer> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('Web Crypto API not available')
+  }
+
+  const userIdBuffer = new TextEncoder().encode(userId)
+  const saltBuffer = new TextEncoder().encode(serverSalt)
+
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    userIdBuffer,
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
+  )
+
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltBuffer,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    256
+  )
+
+  return derivedBits
+}
+
+/**
+ * Déchiffre les tokens depuis le stockage sécurisé (compatible frontend)
+ */
+async function decryptUserTokens(
+  encryptedTokens: EncryptedTokens,
+  userId: string,
+  serverSalt: string
+): Promise<MicrosoftTokens | null> {
+  try {
+    if (typeof crypto === 'undefined' || !crypto.subtle) {
+      throw new Error('Web Crypto API not available')
+    }
+
+    const encryptionKeyBytes = await deriveEncryptionKey(userId, serverSalt)
+    
+    const encryptionKey = await crypto.subtle.importKey(
+      'raw',
+      encryptionKeyBytes,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    )
+    
+    const accessTokenEncrypted = new Uint8Array(base64ToArrayBufferWebhook(encryptedTokens.accessTokenEncrypted))
+    const refreshTokenEncrypted = new Uint8Array(base64ToArrayBufferWebhook(encryptedTokens.refreshTokenEncrypted))
+    const nonce = new Uint8Array(base64ToArrayBufferWebhook(encryptedTokens.nonce))
+    
+    const accessTokenBytes = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: nonce },
+      encryptionKey,
+      accessTokenEncrypted
+    )
+    
+    const refreshTokenBytes = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: nonce },
+      encryptionKey,
+      refreshTokenEncrypted
+    )
+    
+    const accessToken = new TextDecoder().decode(accessTokenBytes)
+    const refreshToken = new TextDecoder().decode(refreshTokenBytes)
+    
+    return {
+      accessToken,
+      refreshToken,
+      expiresAt: encryptedTokens.expiresAt,
+      scope: encryptedTokens.scope
+    }
+  } catch (error) {
+    console.error('❌ Impossible de déchiffrer les tokens - clé invalide ou données corrompues:', error)
+    return null
+  }
+}
+
+/**
+ * Convertit une string base64 en ArrayBuffer
+ */
+function base64ToArrayBufferWebhook(base64: string): ArrayBuffer {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes.buffer
+}
+
+/**
+ * Convertit un ArrayBuffer en string base64
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+/**
+ * Vérifie si un token est expiré
+ */
+function isTokenExpired(expiresAt: string): boolean {
+  return new Date(expiresAt) <= new Date()
+}
+
+/**
+ * Calcule la nouvelle date d'expiration
+ */
+function getNewExpiresAt(expiresInSeconds: number): string {
+  return new Date(Date.now() + expiresInSeconds * 1000).toISOString()
+}
+
+/**
+ * Chiffre les tokens pour le stockage sécurisé
+ */
+async function encryptTokensForStorage(
+  accessToken: string,
+  refreshToken: string,
+  userId: string
+): Promise<{ accessTokenEncrypted: string; refreshTokenEncrypted: string; nonce: string } | null> {
+  try {
+    if (typeof crypto === 'undefined' || !crypto.subtle) {
+      throw new Error('Web Crypto API not available')
+    }
+
+    // Générer un salt déterministe basé sur l'ID utilisateur
+    const serverSalt = `${userId}-encryption-salt-2024`
+    const encryptionKeyBytes = await deriveEncryptionKey(userId, serverSalt)
+    
+    const encryptionKey = await crypto.subtle.importKey(
+      'raw',
+      encryptionKeyBytes,
+      { name: 'AES-GCM' },
+      false,
+      ['encrypt']
+    )
+    
+    // Générer un nonce aléatoire pour ce chiffrement
+    const nonce = crypto.getRandomValues(new Uint8Array(12))
+    
+    // Chiffrer les tokens
+    const accessTokenBytes = new TextEncoder().encode(accessToken)
+    const refreshTokenBytes = new TextEncoder().encode(refreshToken)
+    
+    const encryptedAccessToken = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: nonce },
+      encryptionKey,
+      accessTokenBytes
+    )
+    
+    const encryptedRefreshToken = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: nonce },
+      encryptionKey,
+      refreshTokenBytes
+    )
+    
+    return {
+      accessTokenEncrypted: arrayBufferToBase64(encryptedAccessToken),
+      refreshTokenEncrypted: arrayBufferToBase64(encryptedRefreshToken),
+      nonce: arrayBufferToBase64(nonce.buffer)
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du chiffrement des tokens:', error)
     return null
   }
 }

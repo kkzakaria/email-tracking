@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/utils/supabase/client'
-import { encryptTokens, decryptTokens, areTokensExpired, shouldRefreshTokens, getTimeToExpiry } from '@/lib/crypto-utils'
+import { encryptTokens, decryptTokens, areTokensExpired, shouldRefreshTokens, getTimeToExpiry, type TokenResponse, type MicrosoftTokens } from '@/lib/crypto-utils'
 import { Loader2, CheckCircle, AlertCircle, ExternalLink, RefreshCw, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -45,16 +45,7 @@ interface OAuthAuthResponse {
   expiresIn: number
 }
 
-interface TokenResponse {
-  success: boolean
-  tokens: {
-    accessToken: string
-    refreshToken: string
-    expiresAt: string
-    scope: string
-  }
-  message: string
-}
+// TokenResponse et MicrosoftTokens sont maintenant importés depuis crypto-utils.ts
 
 // ====================================================================================================
 // COMPOSANT PRINCIPAL
@@ -170,43 +161,117 @@ export default function MicrosoftOAuth() {
 
           try {
             // Étape 4: Échanger le code contre des tokens
-            const callbackResponse = await supabase.functions.invoke('microsoft-auth?action=callback', {
+            // Note: Le callback n'a pas besoin d'authentification car il échange juste le code
+            const callbackResponse = await supabase.functions.invoke('microsoft-auth', {
               method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
+              body: {
+                action: 'callback',
                 code: event.data.code,
                 codeVerifier: authData.codeVerifier
-              })
+              }
             })
 
             if (callbackResponse.error) {
               throw new Error(callbackResponse.error.message || 'Erreur échange tokens')
             }
 
-            const tokenData: TokenResponse = callbackResponse.data
+            console.log('Callback response complète:', callbackResponse)
+            console.log('Callback response.data:', callbackResponse.data)
+            
+            const tokenData = callbackResponse.data as TokenResponse
+            
+            // Vérifier la structure de la réponse
+            if (!tokenData || !tokenData.tokens) {
+              console.error('Structure invalide. tokenData:', tokenData)
+              throw new Error('Structure de réponse invalide: tokens manquants')
+            }
+
+            console.log('✅ Tokens reçus avec succès:', {
+              hasAccessToken: !!tokenData.tokens.accessToken,
+              hasRefreshToken: !!tokenData.tokens.refreshToken,
+              expiresAt: tokenData.tokens.expiresAt,
+              scope: tokenData.tokens.scope
+            })
 
             // Étape 5: Chiffrer les tokens côté client
-            const encryptedTokens = await encryptTokens(
-              tokenData.tokens,
-              session.user.id,
-              'SERVER_SALT' // TODO: Récupérer depuis l'environnement sécurisé
-            )
+            console.log('🔐 Chiffrement des tokens côté client...')
+            
+            // Récupérer l'utilisateur actuel pour le chiffrement
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
+              throw new Error('Utilisateur non authentifié pour le chiffrement')
+            }
+            
+            // Générer un salt déterministe basé sur l'ID utilisateur (compatible avec les Edge Functions)
+            const serverSalt = `${user.id}-encryption-salt-2024`
+            
+            const encryptionResult = await encryptTokens({
+              accessToken: tokenData.tokens.accessToken,
+              refreshToken: tokenData.tokens.refreshToken,
+              expiresAt: tokenData.tokens.expiresAt,
+              scope: tokenData.tokens.scope
+            }, user.id, serverSalt)
+            
+            console.log('✅ Tokens chiffrés avec succès')
+            
+            const tokensToStore = {
+              accessTokenEncrypted: encryptionResult.accessTokenEncrypted,
+              refreshTokenEncrypted: encryptionResult.refreshTokenEncrypted,
+              nonce: encryptionResult.nonce,
+              expiresAt: tokenData.tokens.expiresAt,
+              scope: tokenData.tokens.scope
+            }
 
             // Étape 6: Stocker les tokens chiffrés
-            const storeResponse = await supabase.functions.invoke('microsoft-auth?action=store', {
+            console.log('📤 Envoi des tokens chiffrés pour stockage...')
+            console.log('Tokens to send (chiffrés):', {
+              hasAccessToken: !!tokensToStore.accessTokenEncrypted,
+              hasRefreshToken: !!tokensToStore.refreshTokenEncrypted,
+              nonce: tokensToStore.nonce.substring(0, 10) + '...',
+              expiresAt: tokensToStore.expiresAt
+            })
+            
+            // Utiliser fetch directement pour avoir plus de contrôle
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            
+            const storeResponse = await fetch(`${supabaseUrl}/functions/v1/microsoft-auth`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${session.access_token}`,
+                'apikey': supabaseAnonKey,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify(encryptedTokens)
+              body: JSON.stringify({
+                action: 'store',
+                ...tokensToStore
+              })
             })
+            
+            const storeData = await storeResponse.json()
+            console.log('Store raw response:', storeData)
+            
+            const storeResult = {
+              data: storeData,
+              error: storeResponse.ok ? null : storeData
+            }
 
-            if (storeResponse.error) {
-              throw new Error(storeResponse.error.message || 'Erreur stockage tokens')
+            console.log('Store response:', storeResult)
+
+            if (storeResult.error) {
+              console.error('Erreur stockage:', storeResult.error)
+              throw new Error(storeResult.error.message || 'Erreur stockage tokens')
+            }
+
+            console.log('✅ Tokens stockés avec succès')
+
+            // Étape 7: La subscription est créée automatiquement par microsoft-auth
+            if (storeResult.data?.subscriptionCreated) {
+              console.log('✅ Subscription Microsoft Graph créée automatiquement')
+              toast.info('Subscription Microsoft Graph activée pour recevoir les emails')
+            } else {
+              console.log('⚠️ Subscription non créée automatiquement - vérifiez les logs')
+              toast.warning('Connexion réussie - vérifiez le statut de la subscription dans les paramètres')
             }
 
             toast.success('Connexion Microsoft réussie !')
@@ -286,11 +351,14 @@ export default function MicrosoftOAuth() {
         return
       }
 
-      const response = await supabase.functions.invoke('microsoft-auth?action=revoke', {
-        method: 'DELETE',
+      const response = await supabase.functions.invoke('microsoft-auth', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
+        },
+        body: {
+          action: 'revoke'
         }
       })
 
