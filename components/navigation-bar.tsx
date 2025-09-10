@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import Image from "next/image"
 import { 
   MailIcon, 
   Settings, 
@@ -148,9 +149,25 @@ export function NavigationBar({ user }: NavigationBarProps) {
 
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2">
-              <MailIcon className="h-5 w-5 text-primary" />
+              <div className="relative h-12 w-12">
+                <Image
+                  src="/logo_light.png"
+                  alt="Email Tracking Logo"
+                  fill
+                  className="object-contain dark:hidden"
+                  sizes="48px"
+                />
+                <Image
+                  src="/logo_dark.png"
+                  alt="Email Tracking Logo"
+                  fill
+                  className="object-contain hidden dark:block"
+                  sizes="48px"
+                />
+              </div>
               <span className="text-lg font-bold hidden sm:inline">
-                Email Tracking
+                <span className="text-blue-700">KT</span>
+                <span className="text-red-700"> Mail</span>
               </span>
             </Link>
 
