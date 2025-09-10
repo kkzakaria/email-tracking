@@ -126,10 +126,10 @@ export function NavigationBar({ user }: NavigationBarProps) {
                           isActive && "bg-accent text-accent-foreground font-medium"
                         )}
                       >
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-4 w-4 shrink-0" />
                         <div className="flex flex-col">
-                          <span>{link.label}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="leading-none">{link.label}</span>
+                          <span className="text-xs text-muted-foreground leading-tight mt-1">
                             {link.description}
                           </span>
                         </div>
@@ -161,12 +161,12 @@ export function NavigationBar({ user }: NavigationBarProps) {
                           href={link.href}
                           className={cn(
                             navigationMenuTriggerStyle(),
-                            "gap-2 flex items-center",
+                            "gap-2 inline-flex items-center justify-center",
                             isActive && "bg-accent text-accent-foreground"
                           )}
                         >
                           <Icon className="h-4 w-4" />
-                          {link.label}
+                          <span className="leading-none">{link.label}</span>
                         </Link>
                       </NavigationMenuLink>
                     </NavigationMenuItem>
