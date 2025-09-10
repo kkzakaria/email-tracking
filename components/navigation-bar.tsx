@@ -123,7 +123,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
                         className={cn(
                           "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                           "hover:bg-accent hover:text-accent-foreground",
-                          isActive && "bg-accent text-accent-foreground font-medium"
+                          isActive && "bg-blue-700 text-white font-medium"
                         )}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
@@ -162,7 +162,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
                           className={cn(
                             navigationMenuTriggerStyle(),
                             "gap-2 !flex !items-center !justify-center",
-                            isActive && "bg-accent text-accent-foreground"
+                            isActive && "bg-blue-700 text-white hover:bg-blue-800"
                           )}
                         >
                           <Icon className="h-4 w-4" />
