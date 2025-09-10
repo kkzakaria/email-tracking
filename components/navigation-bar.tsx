@@ -152,14 +152,14 @@ export function NavigationBar({ user }: NavigationBarProps) {
               <div className="relative h-12 w-12">
                 <Image
                   src="/logo_light.png"
-                  alt="Email Tracking Logo"
+                  alt="KT Mail Logo"
                   fill
                   className="object-contain dark:hidden"
                   sizes="48px"
                 />
                 <Image
                   src="/logo_dark.png"
-                  alt="Email Tracking Logo"
+                  alt="KT Mail Logo"
                   fill
                   className="object-contain hidden dark:block"
                   sizes="48px"

@@ -10,7 +10,7 @@ export default function DashboardPage() {
         <RealtimeStats />
       </div>
 
-      {/* Email Tracking Table */}
+      {/* KT Mail Tracking Table */}
       <Card>
         <CardContent className="px-6 py-0">
           <EmailsDashboardTable />

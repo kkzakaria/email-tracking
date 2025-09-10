@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useId, use } from "react"
+import Image from "next/image"
 import { EyeIcon, EyeOffIcon, Mail, LoaderCircleIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -42,18 +43,32 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       
       <div className="w-full max-w-md px-4">
         <Card>
-          <CardHeader className="text-center space-y-6">
+          <CardHeader className="text-center space-y-3">
             {/* Logo */}
             <div className="flex justify-center">
-              <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center">
-                <Mail className="w-8 h-8 text-primary-foreground" />
+              <div className="relative w-20 h-20">
+                <Image
+                  src="/logo_light.png"
+                  alt="KT Mail Logo"
+                  fill
+                  className="object-contain dark:hidden"
+                  sizes="80px"
+                />
+                <Image
+                  src="/logo_dark.png"
+                  alt="KT Mail Logo"
+                  fill
+                  className="object-contain hidden dark:block"
+                  sizes="80px"
+                />
               </div>
             </div>
             
             {/* Title */}
             <div className="space-y-2">
               <CardTitle className="text-2xl font-bold">
-                Email Tracking
+                <span className="text-blue-700">KT</span>
+                <span className="text-red-700"> Mail</span>
               </CardTitle>
               <CardDescription>
                 Connectez-vous à votre compte

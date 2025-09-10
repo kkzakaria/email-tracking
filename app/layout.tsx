@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Email Tracking - Suivi d'emails professionnels",  
-  description: "Application de suivi d'emails avec Microsoft 365 - Architecture Supabase autonome",
+  title: "KT Mail - Suivi d'emails professionnels",  
+  description: "KT Mail - Application de suivi d'emails avec Microsoft 365 - Architecture Supabase autonome",
 };
 
 export default function RootLayout({
