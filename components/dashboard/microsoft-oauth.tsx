@@ -79,11 +79,8 @@ export default function MicrosoftOAuth() {
       }
 
       const response = await supabase.functions.invoke('microsoft-auth', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        method: 'GET'
+        // Note: supabase.functions.invoke() gère automatiquement l'authentification
       })
 
       if (response.error) {
@@ -95,6 +92,9 @@ export default function MicrosoftOAuth() {
       // Démarrer le timer d'expiration si connecté
       if (response.data.microsoft && response.data.tokens && !response.data.tokens.isExpired) {
         setTimeToExpiry(getTimeToExpiry(response.data.tokens.expiresAt))
+        
+        // Note: Le refresh automatique est maintenant géré par le cron job PostgreSQL
+        // Pas besoin de logique frontend pour le refresh automatique
       }
 
     } catch (error) {
@@ -126,11 +126,8 @@ export default function MicrosoftOAuth() {
 
       // Étape 1: Obtenir l'URL d'autorisation
       const authResponse = await supabase.functions.invoke('microsoft-auth?action=authorize', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        method: 'GET'
+        // Note: supabase.functions.invoke() gère automatiquement l'authentification
       })
 
       if (authResponse.error) {
@@ -231,29 +228,21 @@ export default function MicrosoftOAuth() {
               expiresAt: tokensToStore.expiresAt
             })
             
-            // Utiliser fetch directement pour avoir plus de contrôle
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-            
-            const storeResponse = await fetch(`${supabaseUrl}/functions/v1/microsoft-auth`, {
+            // Utiliser supabase.functions.invoke() pour une authentification cohérente
+            const storeResponse = await supabase.functions.invoke('microsoft-auth', {
               method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'apikey': supabaseAnonKey,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
+              body: {
                 action: 'store',
                 ...tokensToStore
-              })
+              }
             })
             
-            const storeData = await storeResponse.json()
+            const storeData = storeResponse.data
             console.log('Store raw response:', storeData)
             
             const storeResult = {
               data: storeData,
-              error: storeResponse.ok ? null : storeData
+              error: storeResponse.error
             }
 
             console.log('Store response:', storeResult)
@@ -321,13 +310,22 @@ export default function MicrosoftOAuth() {
         return
       }
 
-      // TODO: Récupérer et déchiffrer les tokens pour le refresh
-      // Ceci nécessite d'accéder aux tokens chiffrés stockés
+      // Appeler l'Edge Function microsoft-auth avec action refresh
       toast.info('Renouvellement des tokens en cours...')
-
-      // Pour l'instant, on recharge juste le statut
+      
+      const { data, error } = await supabase.functions.invoke('microsoft-auth', {
+        body: { action: 'refresh' }
+        // Note: supabase.functions.invoke() gère automatiquement l'authentification
+        // avec le token de session actuel
+      })
+      
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Erreur de renouvellement')
+      }
+      
+      // Recharger le statut pour voir les nouveaux tokens
       await fetchStatus()
-      toast.success('Statut mis à jour')
+      toast.success('Tokens renouvelés avec succès')
 
     } catch (error) {
       console.error('Erreur renouvellement:', error)
@@ -353,13 +351,10 @@ export default function MicrosoftOAuth() {
 
       const response = await supabase.functions.invoke('microsoft-auth', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
         body: {
           action: 'revoke'
         }
+        // Note: supabase.functions.invoke() gère automatiquement l'authentification
       })
 
       if (response.error) {
@@ -500,6 +495,26 @@ export default function MicrosoftOAuth() {
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Information sur le refresh automatique */}
+        {status?.microsoft && status.tokens && (
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-start gap-3">
+              <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Refresh automatique activé
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Les tokens sont automatiquement renouvelés toutes les 30 minutes par le serveur. 
+                  Utilisez le bouton "Actualiser" uniquement si vous souhaitez forcer une mise à jour immédiate.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

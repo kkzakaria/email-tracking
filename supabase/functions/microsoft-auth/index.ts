@@ -360,9 +360,9 @@ async function handleRefresh(_req: Request, authHeader: string, bodyData: Reques
     console.log('🔄 Renouvellement tokens pour user:', user.id)
 
     // Récupérer les tokens chiffrés stockés
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     
-    const { data: storedTokens, error } = await supabase
+    const { data: storedTokens, error } = await supabaseClient
       .from('microsoft_tokens')
       .select('*')
       .eq('user_id', user.id)
@@ -375,32 +375,70 @@ async function handleRefresh(_req: Request, authHeader: string, bodyData: Reques
       }, { status: 404 })
     }
 
-    // Pour le renouvellement, nous devons déchiffrer le refresh token
-    // Le client doit fournir les tokens déchiffrés ou nous devons les déchiffrer ici
-    const refreshToken = bodyData.refreshToken
+    // Déchiffrer automatiquement les tokens stockés pour le renouvellement
+    console.log('🔓 Déchiffrement des tokens pour renouvellement...')
+    const serverSalt = `${user.id}-encryption-salt-2024`
+    const decryptedTokens = await decryptUserTokens({
+      accessTokenEncrypted: storedTokens.access_token_encrypted,
+      refreshTokenEncrypted: storedTokens.refresh_token_encrypted,
+      nonce: storedTokens.token_nonce,
+      expiresAt: storedTokens.expires_at,
+      scope: storedTokens.scope || ''
+    }, user.id, serverSalt)
 
-    if (!refreshToken) {
+    if (!decryptedTokens) {
       return createCorsResponse({
-        error: 'Refresh token manquant',
-        message: 'Le refresh token déchiffré est requis'
-      }, { status: 400 })
+        error: 'Impossible de déchiffrer les tokens',
+        message: 'Les tokens stockés sont corrompus ou la clé de chiffrement est invalide'
+      }, { status: 500 })
     }
+
+    const refreshToken = decryptedTokens.refreshToken
+    console.log('✅ Refresh token déchiffré avec succès')
 
     // Renouveler les tokens via Microsoft
     const newTokens = await refreshMicrosoftTokens(refreshToken)
     
     console.log('✅ Nouveaux tokens Microsoft obtenus')
 
-    // Retourner les nouveaux tokens pour re-chiffrement côté client
+    // Chiffrer et stocker les nouveaux tokens automatiquement
+    const newTokensData = {
+      accessToken: newTokens.access_token,
+      refreshToken: newTokens.refresh_token || refreshToken, // Garde l'ancien si pas de nouveau
+      expiresAt: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+      scope: newTokens.scope
+    }
+
+    // Utiliser les mêmes fonctions de chiffrement que pour le stockage initial
+    const encryptedNewTokens = await encryptUserTokensForStorage(newTokensData, user.id, serverSalt)
+
+    // Mettre à jour en base de données
+    const supabaseUpdate = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const { error: updateError } = await supabaseUpdate
+      .from('microsoft_tokens')
+      .update({
+        access_token_encrypted: encryptedNewTokens.accessTokenEncrypted,
+        refresh_token_encrypted: encryptedNewTokens.refreshTokenEncrypted,
+        token_nonce: encryptedNewTokens.nonce,
+        expires_at: newTokensData.expiresAt,
+        scope: newTokensData.scope,
+        last_refreshed_at: new Date().toISOString(),
+        refresh_attempts: storedTokens.refresh_attempts + 1
+      })
+      .eq('user_id', user.id)
+
+    if (updateError) {
+      console.error('❌ Erreur mise à jour tokens renouvelés:', updateError)
+      // Retourner les nouveaux tokens même si la mise à jour échoue
+    } else {
+      console.log('✅ Nouveaux tokens chiffrés et stockés en base')
+    }
+
+    // Retourner les nouveaux tokens pour information côté client
     return createCorsResponse({
       success: true,
-      tokens: {
-        accessToken: newTokens.access_token,
-        refreshToken: newTokens.refresh_token || refreshToken, // Garde l'ancien si pas de nouveau
-        expiresAt: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
-        scope: newTokens.scope
-      },
-      message: 'Tokens renouvelés avec succès'
+      tokens: newTokensData,
+      message: 'Tokens renouvelés et stockés automatiquement'
     }, { status: 200 })
 
   } catch (error: unknown) {
@@ -425,32 +463,123 @@ async function handleRevoke(_req: Request, authHeader: string): Promise<Response
       }, { status: 401 })
     }
 
-    console.log('🗑️ Révocation tokens pour user:', user.id)
+    console.log('🗑️ Révocation complète Microsoft Graph pour user:', user.id)
 
-    // Supprimer les tokens de la base
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    const { error } = await supabase
+
+    // 1. Récupérer les tokens pour pouvoir appeler Microsoft Graph
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('microsoft_tokens')
+      .select('access_token_encrypted, refresh_token_encrypted, token_nonce, expires_at, scope')
+      .eq('user_id', user.id)
+      .single()
+
+    // 2. Récupérer toutes les subscriptions actives de l'utilisateur
+    const { data: subscriptions, error: subscriptionsError } = await supabase
+      .from('graph_subscriptions')
+      .select('subscription_id, is_active')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    if (subscriptionsError) {
+      console.warn('⚠️ Erreur récupération subscriptions:', subscriptionsError)
+    }
+
+    let subscriptionsCleaned = 0
+    let subscriptionsErrors = 0
+
+    // 3. Désabonner de Microsoft Graph si on a des tokens valides
+    if (tokenData && !tokenError && subscriptions && subscriptions.length > 0) {
+      try {
+        console.log('🔓 Déchiffrement des tokens pour désinscription...')
+        const serverSalt = `${user.id}-encryption-salt-2024`
+        const decryptedTokens = await decryptUserTokens({
+          accessTokenEncrypted: tokenData.access_token_encrypted,
+          refreshTokenEncrypted: tokenData.refresh_token_encrypted,
+          nonce: tokenData.token_nonce,
+          expiresAt: tokenData.expires_at,
+          scope: tokenData.scope || ''
+        }, user.id, serverSalt)
+
+        if (decryptedTokens) {
+          console.log(`📧 Désinscription de ${subscriptions.length} subscription(s) Microsoft Graph...`)
+          
+          // Désabonner chaque subscription de Microsoft Graph
+          for (const subscription of subscriptions) {
+            try {
+              const deleteResponse = await fetch(
+                `https://graph.microsoft.com/v1.0/subscriptions/${subscription.subscription_id}`,
+                {
+                  method: 'DELETE',
+                  headers: {
+                    'Authorization': `Bearer ${decryptedTokens.accessToken}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              )
+
+              if (deleteResponse.ok || deleteResponse.status === 404) {
+                console.log(`✅ Subscription ${subscription.subscription_id} supprimée de Microsoft Graph`)
+                subscriptionsCleaned++
+              } else {
+                console.warn(`⚠️ Erreur suppression subscription ${subscription.subscription_id}:`, deleteResponse.status)
+                subscriptionsErrors++
+              }
+            } catch (subError) {
+              console.error(`❌ Erreur suppression subscription ${subscription.subscription_id}:`, subError)
+              subscriptionsErrors++
+            }
+          }
+        } else {
+          console.warn('⚠️ Impossible de déchiffrer les tokens, suppression locale uniquement')
+        }
+      } catch (decryptError) {
+        console.warn('⚠️ Erreur déchiffrement tokens pour désinscription:', decryptError)
+      }
+    }
+
+    // 4. Supprimer toutes les subscriptions de la base (même si la désinscription Microsoft Graph a échoué)
+    if (subscriptions && subscriptions.length > 0) {
+      const { error: deleteSubError } = await supabase
+        .from('graph_subscriptions')
+        .delete()
+        .eq('user_id', user.id)
+
+      if (deleteSubError) {
+        console.error('❌ Erreur suppression subscriptions base:', deleteSubError)
+      } else {
+        console.log(`✅ ${subscriptions.length} subscription(s) supprimée(s) de la base`)
+      }
+    }
+
+    // 5. Supprimer les tokens de la base
+    const { error: tokenDeleteError } = await supabase
       .from('microsoft_tokens')
       .delete()
       .eq('user_id', user.id)
 
-    if (error) {
-      console.error('❌ Erreur suppression tokens:', error)
-      throw new Error(`Erreur base de données: ${error.message}`)
+    if (tokenDeleteError) {
+      console.error('❌ Erreur suppression tokens:', tokenDeleteError)
+      throw new Error(`Erreur suppression tokens: ${tokenDeleteError.message}`)
     }
 
-    console.log('✅ Tokens Microsoft révoqués pour user:', user.id)
+    console.log('✅ Déconnexion Microsoft Graph complète pour user:', user.id)
 
     return createCorsResponse({
       success: true,
-      message: 'Tokens Microsoft révoqués avec succès'
+      message: 'Déconnexion Microsoft Graph réussie',
+      details: {
+        tokensRemoved: true,
+        subscriptionsFound: subscriptions?.length || 0,
+        subscriptionsCleaned,
+        subscriptionsErrors
+      }
     }, { status: 200 })
 
   } catch (error: unknown) {
-    console.error('❌ Erreur révocation tokens:', error)
+    console.error('❌ Erreur déconnexion Microsoft Graph:', error)
     return createCorsResponse({
-      error: 'Erreur révocation tokens',
+      error: 'Erreur déconnexion Microsoft Graph',
       message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
@@ -612,15 +741,19 @@ async function refreshMicrosoftTokens(refreshToken: string): Promise<OAuthTokenR
 async function getSupabaseUser(authHeader: string): Promise<SupabaseUser | null> {
   try {
     const token = authHeader.replace('Bearer ', '')
+    
+    // Pour les Edge Functions avec supabase.functions.invoke(), 
+    // utiliser la service_role_key pour décoder les tokens JWT utilisateur
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     
     const { data: { user }, error } = await supabase.auth.getUser(token)
     
     if (error || !user) {
-      console.error('❌ Utilisateur Supabase non valide:', error)
+      console.error('❌ Utilisateur Supabase non valide:', error?.message || 'Token invalide')
       return null
     }
     
+    console.log('✅ Utilisateur Supabase validé:', user.id)
     return user as unknown as SupabaseUser
   } catch (error) {
     console.error('❌ Erreur vérification utilisateur:', error)
@@ -809,6 +942,55 @@ async function decryptUserTokens(
 }
 
 /**
+ * Chiffre les tokens pour stockage (pour le refresh automatique côté serveur)
+ */
+async function encryptUserTokensForStorage(
+  tokens: MicrosoftTokens,
+  userId: string,
+  serverSalt: string
+): Promise<EncryptedTokens> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('Web Crypto API not available')
+  }
+
+  const encryptionKeyBytes = await deriveEncryptionKey(userId, serverSalt)
+  
+  const encryptionKey = await crypto.subtle.importKey(
+    'raw',
+    encryptionKeyBytes,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  )
+  
+  // Générer un nouveau nonce pour ce chiffrement
+  const nonce = crypto.getRandomValues(new Uint8Array(12))
+  
+  const accessTokenBytes = new TextEncoder().encode(tokens.accessToken)
+  const refreshTokenBytes = new TextEncoder().encode(tokens.refreshToken)
+  
+  const accessTokenEncrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce },
+    encryptionKey,
+    accessTokenBytes
+  )
+  
+  const refreshTokenEncrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce },
+    encryptionKey,
+    refreshTokenBytes
+  )
+  
+  return {
+    accessTokenEncrypted: arrayBufferToBase64(accessTokenEncrypted),
+    refreshTokenEncrypted: arrayBufferToBase64(refreshTokenEncrypted),
+    nonce: arrayBufferToBase64(nonce.buffer),
+    expiresAt: tokens.expiresAt,
+    scope: tokens.scope
+  }
+}
+
+/**
  * Convertit une string base64 en ArrayBuffer
  */
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -818,6 +1000,18 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
     bytes[i] = binary.charCodeAt(i)
   }
   return bytes.buffer
+}
+
+/**
+ * Convertit un ArrayBuffer en string base64
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
 }
 
 console.log('🚀 Microsoft Auth v1.0 ready - OAuth2 + E2E Encryption')

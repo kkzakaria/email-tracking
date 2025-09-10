@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubscriptionManager } from "@/components/dashboard/subscription-manager";
 import MicrosoftOAuth from "@/components/dashboard/microsoft-oauth";
+import { EmailHistorySync } from "@/components/dashboard/email-history-sync";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -39,6 +40,9 @@ export default async function SettingsPage() {
         {/* Microsoft OAuth Connection */}
         <div className="space-y-6">
           <MicrosoftOAuth />
+          
+          {/* Email History Sync */}
+          <EmailHistorySync />
           
           {/* Subscription Management */}
           <Card>
