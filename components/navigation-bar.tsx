@@ -185,7 +185,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="relative h-8 w-8 rounded-full"
+                  className="relative h-8 w-8 rounded-full border border-border"
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage 

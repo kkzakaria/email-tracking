@@ -22,7 +22,7 @@ export function ModeToggle() {
       variant="ghost"
       size="sm"
       onClick={toggleTheme}
-      className="h-8 w-8 p-0 relative overflow-hidden cursor-pointer"
+      className="h-8 w-8 p-0 relative overflow-hidden cursor-pointer border border-border"
       aria-label="Basculer entre le mode clair et sombre"
     >
       <SunIcon
