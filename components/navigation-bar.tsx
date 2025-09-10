@@ -128,8 +128,8 @@ export function NavigationBar({ user }: NavigationBarProps) {
                       >
                         <Icon className="h-4 w-4 shrink-0" />
                         <div className="flex flex-col">
-                          <span className="leading-none">{link.label}</span>
-                          <span className="text-xs text-muted-foreground leading-tight mt-1">
+                          <span>{link.label}</span>
+                          <span className="text-xs text-muted-foreground">
                             {link.description}
                           </span>
                         </div>
@@ -149,8 +149,8 @@ export function NavigationBar({ user }: NavigationBarProps) {
             </Link>
 
             {/* Navigation desktop */}
-            <NavigationMenu className="hidden md:flex items-center">
-              <NavigationMenuList className="items-center">
+            <NavigationMenu className="hidden md:flex">
+              <NavigationMenuList>
                 {navigationLinks.map((link) => {
                   const Icon = link.icon
                   const isActive = pathname === link.href
@@ -161,12 +161,12 @@ export function NavigationBar({ user }: NavigationBarProps) {
                           href={link.href}
                           className={cn(
                             navigationMenuTriggerStyle(),
-                            "gap-2 inline-flex items-center justify-center",
+                            "gap-2",
                             isActive && "bg-accent text-accent-foreground"
                           )}
                         >
                           <Icon className="h-4 w-4" />
-                          <span className="leading-none">{link.label}</span>
+                          {link.label}
                         </Link>
                       </NavigationMenuLink>
                     </NavigationMenuItem>
