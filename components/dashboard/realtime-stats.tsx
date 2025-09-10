@@ -24,7 +24,7 @@ export function RealtimeStats() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
           <CardTitle className="text-sm font-medium">Total</CardTitle>
           <MailIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
@@ -35,7 +35,7 @@ export function RealtimeStats() {
       </Card>
       
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
           <CardTitle className="text-sm font-medium">En attente</CardTitle>
           <ClockIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
@@ -46,7 +46,7 @@ export function RealtimeStats() {
       </Card>
       
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
           <CardTitle className="text-sm font-medium">Répondus</CardTitle>
           <CheckCircleIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
@@ -59,7 +59,7 @@ export function RealtimeStats() {
       </Card>
       
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
           <CardTitle className="text-sm font-medium">Échecs</CardTitle>
           <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
