@@ -62,6 +62,8 @@ export function RealtimeProvider({ children, initialEmails = [] }: RealtimeProvi
   useEffect(() => {
     const supabase = createClient()
     
+    console.log('🔄 Initializing Realtime subscription...')
+    
     // Configuration du channel Realtime
     const channel = supabase
       .channel('tracked_emails_changes')
@@ -73,7 +75,7 @@ export function RealtimeProvider({ children, initialEmails = [] }: RealtimeProvi
           table: 'tracked_emails'
         },
         (payload) => {
-          console.log('Realtime change received:', payload)
+          console.log('📨 Realtime change received:', payload)
           
           switch (payload.eventType) {
             case 'INSERT':
@@ -100,17 +102,23 @@ export function RealtimeProvider({ children, initialEmails = [] }: RealtimeProvi
         }
       )
       .subscribe((status) => {
-        console.log('Realtime subscription status:', status)
+        console.log('📡 Realtime subscription status:', status)
         
         if (status === 'SUBSCRIBED') {
+          console.log('✅ Realtime successfully connected!')
           setIsConnected(true)
           setError(null)
         } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime channel error')
           setIsConnected(false)
           setError('Erreur de connexion Realtime')
         } else if (status === 'TIMED_OUT') {
+          console.error('⏱️ Realtime connection timed out')
           setIsConnected(false)
           setError('Timeout de connexion Realtime')
+        } else if (status === 'CLOSED') {
+          console.warn('🔒 Realtime channel closed')
+          setIsConnected(false)
         }
         
         setIsLoading(false)

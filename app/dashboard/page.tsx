@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RealtimeProvider } from "@/components/dashboard/realtime-provider";
 import { EmailsDashboardTable } from "@/components/dashboard/emails-dashboard-table";
+import { RealtimeDebug } from "@/components/dashboard/realtime-debug";
 import { ModeToggle } from "@/components/mode-toggle";
 import { MailIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, Settings } from "lucide-react";
 import Link from "next/link";
@@ -79,6 +80,11 @@ export default async function DashboardPage() {
           </div>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Realtime Debug Info */}
+            <div className="mb-4">
+              <RealtimeDebug />
+            </div>
+
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <Card>
