@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/utils/supabase/client'
-import { encryptTokens, decryptTokens, areTokensExpired, shouldRefreshTokens, getTimeToExpiry, type TokenResponse, type MicrosoftTokens } from '@/lib/crypto-utils'
+import { encryptTokens, shouldRefreshTokens, getTimeToExpiry, type TokenResponse } from '@/lib/crypto-utils'
 import { Loader2, CheckCircle, AlertCircle, ExternalLink, RefreshCw, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -144,7 +144,7 @@ export default function MicrosoftOAuth() {
       )
 
       if (!popup) {
-        toast.error('Impossible d\'ouvrir la popup. Vérifiez le bloqueur de popup.')
+        toast.error('Impossible d&apos;ouvrir la popup. Vérifiez le bloqueur de popup.')
         return
       }
 
@@ -450,7 +450,7 @@ export default function MicrosoftOAuth() {
               Connexion Microsoft Graph
             </CardTitle>
             <CardDescription>
-              Authentifiez-vous avec Microsoft pour créer des subscriptions d'emails
+              Authentifiez-vous avec Microsoft pour créer des subscriptions d&apos;emails
             </CardDescription>
           </div>
           {getStatusBadge()}
@@ -511,7 +511,7 @@ export default function MicrosoftOAuth() {
                 </p>
                 <p className="text-xs text-blue-700 dark:text-blue-300">
                   Les tokens sont automatiquement renouvelés toutes les 30 minutes par le serveur. 
-                  Utilisez le bouton "Actualiser" uniquement si vous souhaitez forcer une mise à jour immédiate.
+                  Utilisez le bouton &quot;Actualiser&quot; uniquement si vous souhaitez forcer une mise à jour immédiate.
                 </p>
               </div>
             </div>
