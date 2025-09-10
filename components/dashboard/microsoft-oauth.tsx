@@ -145,8 +145,18 @@ export default function MicrosoftOAuth() {
 
       if (!popup) {
         toast.error('Impossible d&apos;ouvrir la popup. Vérifiez le bloqueur de popup.')
+        console.error('❌ Popup bloquée. URL:', authData.authUrl)
         return
       }
+
+      // Vérifier si la popup se ferme immédiatement (indication d'un bloqueur)
+      const popupChecker = setTimeout(() => {
+        if (popup.closed) {
+          console.error('❌ Popup fermée immédiatement, probablement bloquée')
+          toast.error('La popup a été fermée. Vérifiez votre bloqueur de popup.')
+          setLoading(false)
+        }
+      }, 1000)
 
       // Étape 3: Écouter le callback de la popup
       const handleCallback = async (event: MessageEvent) => {
@@ -154,6 +164,7 @@ export default function MicrosoftOAuth() {
 
         if (event.data.type === 'MICROSOFT_OAUTH_SUCCESS') {
           window.removeEventListener('message', handleCallback)
+          clearTimeout(popupChecker)
           popup.close()
 
           try {
@@ -272,7 +283,9 @@ export default function MicrosoftOAuth() {
           }
         } else if (event.data.type === 'MICROSOFT_OAUTH_ERROR') {
           window.removeEventListener('message', handleCallback)
+          clearTimeout(popupChecker)
           popup.close()
+          console.error('❌ Erreur OAuth:', event.data)
           toast.error(event.data.message || 'Erreur OAuth Microsoft')
         }
       }
