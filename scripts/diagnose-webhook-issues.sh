@@ -1,73 +1,44 @@
 #!/bin/bash
 
-# Script de diagnostic complet pour les webhooks
-WEBHOOK_URL="https://email-tracking-zeta.vercel.app"
+# Script de diagnostic pour les problèmes de webhook
 
-echo "🔍 DIAGNOSTIC COMPLET DES WEBHOOKS"
-echo "=================================="
-echo
+source .env.local
 
-echo "1. TEST DE L'ENDPOINT WEBHOOK"
-echo "-----------------------------"
-curl -s "$WEBHOOK_URL/api/webhooks/outlook" | jq '.' 2>/dev/null || curl -s "$WEBHOOK_URL/api/webhooks/outlook"
-echo
-echo
+echo "🔍 Diagnostic des webhooks Microsoft Graph..."
+echo "================================================"
 
-echo "2. TEST DU STATUT DU SYSTÈME"
-echo "----------------------------"
-curl -s "$WEBHOOK_URL/api/tracking/status" | jq '.' 2>/dev/null || curl -s "$WEBHOOK_URL/api/tracking/status"
-echo
-echo
+# Test de l'endpoint webhook
+echo "1. Test de l'endpoint webhook (santé)..."
+curl -s "${NEXT_PUBLIC_SUPABASE_URL}/functions/v1/webhook-handler" \
+  -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" | echo
 
-echo "3. TEST DE LA LISTE DES SOUSCRIPTIONS (nécessite auth)"
-echo "------------------------------------------------------"
-echo "⚠️ Nécessite une authentification - testez depuis l'interface web"
-echo "URL: $WEBHOOK_URL/api/webhooks/subscribe"
-echo
-echo
+echo -e "\n2. Vérification des tokens Microsoft..."
+curl -s -X GET \
+  "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/microsoft_tokens?select=id,expires_at,created_at,token_nonce&order=created_at.desc&limit=3" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json"
 
-echo "4. VÉRIFICATION DES VARIABLES D'ENVIRONNEMENT CRITIQUES"
-echo "-------------------------------------------------------"
-echo "Variables d'environnement requises sur Vercel:"
-echo "✅ WEBHOOK_ENABLED=true"
-echo "✅ WEBHOOK_ENDPOINT_URL=$WEBHOOK_URL/api/webhooks/outlook"
-echo "✅ WEBHOOK_CLIENT_STATE=secure-webhook-validation-key-2024"
-echo "✅ AZURE_AD_CLIENT_ID, AZURE_AD_CLIENT_SECRET, AZURE_AD_TENANT_ID"
-echo "✅ SUPABASE_SERVICE_ROLE_KEY (pour l'accès système aux webhooks)"
-echo
-echo
+echo -e "\n3. Vérification des événements webhook récents..."
+curl -s -X GET \
+  "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/webhook_events?select=id,subscription_id,change_type,resource_id,processed,created_at&order=created_at.desc&limit=5" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json"
 
-echo "5. TEST DU CRON DE RENOUVELLEMENT"
-echo "---------------------------------"
-curl -s "$WEBHOOK_URL/api/cron/renew-webhooks" | jq '.' 2>/dev/null || curl -s "$WEBHOOK_URL/api/cron/renew-webhooks"
-echo
-echo
+echo -e "\n4. Vérification des messages reçus..."
+curl -s -X GET \
+  "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/received_messages?select=id,subject,from_email,conversation_id,created_at&order=created_at.desc&limit=5" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json"
 
-echo "6. PROBLÈMES IDENTIFIÉS ET SOLUTIONS"
-echo "===================================="
-echo "❌ PROBLÈME 1: Variable WEBHOOK_ENABLED manquante"
-echo "   → Ajouter WEBHOOK_ENABLED=true sur Vercel"
-echo
-echo "❌ PROBLÈME 2: Logique de détection des réponses imparfaite"
-echo "   → Utilise subject matching au lieu de conversation tracking"
-echo "   → Pas de conversation_id stocké dans email_tracking"
-echo
-echo "❌ PROBLÈME 3: Synchronisation manuelle peut ne pas détecter les réponses"
-echo "   → hasEmailReceivedReply() compte les messages mais ne vérifie pas les expéditeurs"
-echo
-echo "❌ PROBLÈME 4: Interface peut ne pas refléter le statut réel"
-echo "   → webhook monitoring dépend de l'état des subscriptions en DB"
-echo
-echo
+echo -e "\n5. Vérification des subscriptions actives..."
+curl -s -X POST \
+  "${NEXT_PUBLIC_SUPABASE_URL}/functions/v1/subscription-manager" \
+  -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "status"}'
 
-echo "RECOMMANDATIONS:"
-echo "==============="
-echo "1. Ajouter WEBHOOK_ENABLED=true sur Vercel"
-echo "2. Migrer la base de données pour ajouter conversation_id"
-echo "3. Améliorer la logique de détection des réponses"
-echo "4. Vérifier que les souscriptions sont bien créées en DB"
-echo
-echo "Pour plus de détails, consultez les logs Vercel et les tables Supabase:"
-echo "- webhook_subscriptions (souscriptions actives)"
-echo "- webhook_events (notifications reçues)"
-echo "- webhook_processing_log (actions effectuées)"
+echo -e "\n✅ Diagnostic terminé"

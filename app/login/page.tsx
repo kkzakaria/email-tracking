@@ -1,91 +1,149 @@
-import { login } from './actions'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+"use client"
+
+import { useState, useId, use } from "react"
+import Image from "next/image"
+import { EyeIcon, EyeOffIcon, Mail, LoaderCircleIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mail, Lock, User } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ModeToggle } from "@/components/mode-toggle"
+import { login } from './actions'
 
 interface LoginPageProps {
-  searchParams: {
+  searchParams: Promise<{
     message?: string
-  }
+  }>
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
-  const message = searchParams.message
+  const resolvedSearchParams = use(searchParams)
+  const message = resolvedSearchParams.message
+  const emailId = useId()
+  const passwordId = useId()
+  const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+
+  const togglePasswordVisibility = () => setIsPasswordVisible((prev) => !prev)
+  
+  const handleSubmit = async (formData: FormData) => {
+    setIsLoading(true)
+    try {
+      await login(formData)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
+      
       <div className="w-full max-w-md px-4">
-        <Card className="shadow-2xl border-0">
-          <CardHeader className="text-center space-y-6 pb-8">
+        <Card>
+          <CardHeader className="text-center space-y-3">
             {/* Logo */}
             <div className="flex justify-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Mail className="w-10 h-10 text-white" />
+              <div className="relative w-20 h-20">
+                <Image
+                  src="/logo_light.png"
+                  alt="KT Mail Logo"
+                  fill
+                  className="object-contain dark:hidden"
+                  sizes="80px"
+                />
+                <Image
+                  src="/logo_dark.png"
+                  alt="KT Mail Logo"
+                  fill
+                  className="object-contain hidden dark:block"
+                  sizes="80px"
+                />
               </div>
             </div>
             
             {/* Title */}
             <div className="space-y-2">
-              <CardTitle className="text-3xl font-bold text-slate-900">
-                Email Tracking
+              <CardTitle className="text-2xl font-bold">
+                <span className="text-blue-700">KT</span>
+                <span className="text-red-700"> Mail</span>
               </CardTitle>
-              <CardDescription className="text-base text-slate-600">
+              <CardDescription>
                 Connectez-vous à votre compte
               </CardDescription>
             </div>
 
             {/* Message d'erreur ou d'info */}
             {message && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">{decodeURIComponent(message)}</p>
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm text-destructive">{decodeURIComponent(message)}</p>
               </div>
             )}
           </CardHeader>
 
-          <CardContent className="space-y-8">
+          <CardContent className="space-y-6">
             {/* Formulaire de connexion */}
-            <form className="space-y-6">
+            <form action={handleSubmit} className="space-y-6">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
+                {/* Email Input - Based on comp-01 */}
+                <div className="*:not-first:mt-2">
+                  <Label htmlFor={emailId}>Adresse email</Label>
+                  <Input 
+                    id={emailId}
                     name="email"
                     type="email"
-                    autoComplete="email"
+                    placeholder="votre.email@entreprise.com"
                     required
-                    className="w-full h-11 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                    placeholder="votre@email.com"
+                    autoComplete="email"
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <Lock className="w-4 h-4" />
-                    Mot de passe
-                  </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    className="w-full h-11 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                    placeholder="••••••••"
-                  />
+
+                {/* Password Input - Based on comp-23 */}
+                <div className="*:not-first:mt-2">
+                  <Label htmlFor={passwordId}>Mot de passe</Label>
+                  <div className="relative">
+                    <Input
+                      id={passwordId}
+                      name="password"
+                      className="pe-9"
+                      placeholder="Votre mot de passe"
+                      type={isPasswordVisible ? "text" : "password"}
+                      required
+                      autoComplete="current-password"
+                    />
+                    <button
+                      className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none focus:z-10 focus-visible:ring-[3px] cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      aria-label={isPasswordVisible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                      aria-pressed={isPasswordVisible}
+                      aria-controls={passwordId}
+                    >
+                      {isPasswordVisible ? (
+                        <EyeOffIcon size={16} aria-hidden="true" />
+                      ) : (
+                        <EyeIcon size={16} aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <Button
-                formAction={login}
-                className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                type="submit"
+                disabled={isLoading}
+                className="w-full cursor-pointer"
               >
-                Se connecter
+                {isLoading && (
+                  <LoaderCircleIcon
+                    className="-ms-1 animate-spin"
+                    size={16}
+                    aria-hidden="true"
+                  />
+                )}
+                {isLoading ? "Connexion..." : "Se connecter"}
               </Button>
             </form>
           </CardContent>

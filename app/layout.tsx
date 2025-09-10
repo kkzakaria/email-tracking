@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Navigation } from "@/components/layout/navigation";
-import { ConditionalMain } from "@/components/layout/conditional-main";
-import { ThemeProvider } from "@/components/theme-provider";
-import { WebhookStatusProvider } from "@/contexts/webhook-status-context";
-import { QueryProvider } from "@/providers/query-client-provider";
 import "./globals.css";
+import { ThemeProvider } from "@/providers/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Email Tracking - Suivi d'emails professionnels",
-  description: "Application de suivi d'emails avec Microsoft 365 - Tracking, rappels automatiques et analytics",
+  title: "KT Mail - Suivi d'emails professionnels",  
+  description: "KT Mail - Application de suivi d'emails avec Microsoft 365 - Architecture Supabase autonome",
 };
 
 export default function RootLayout({
@@ -32,21 +28,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <QueryProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <WebhookStatusProvider>
-              <Navigation />
-              <ConditionalMain>
-                {children}
-              </ConditionalMain>
-            </WebhookStatusProvider>
-          </ThemeProvider>
-        </QueryProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
