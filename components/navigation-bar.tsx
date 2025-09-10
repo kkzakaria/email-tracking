@@ -87,7 +87,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex h-12 items-center justify-between gap-4">
           {/* Partie gauche - Logo et navigation */}
           <div className="flex items-center gap-6">
             {/* Menu mobile */}
@@ -142,8 +142,8 @@ export function NavigationBar({ user }: NavigationBarProps) {
 
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2">
-              <MailIcon className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold hidden sm:inline">
+              <MailIcon className="h-5 w-5 text-primary" />
+              <span className="text-lg font-bold hidden sm:inline">
                 Email Tracking
               </span>
             </Link>
@@ -185,14 +185,14 @@ export function NavigationBar({ user }: NavigationBarProps) {
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="relative h-9 w-9 rounded-full"
+                  className="relative h-8 w-8 rounded-full"
                 >
-                  <Avatar className="h-9 w-9">
+                  <Avatar className="h-8 w-8">
                     <AvatarImage 
                       src={user?.image} 
                       alt={user?.name || user?.email || "User"} 
                     />
-                    <AvatarFallback className="bg-primary/10">
+                    <AvatarFallback className="bg-primary/10 text-sm">
                       {getInitials(user?.email, user?.name)}
                     </AvatarFallback>
                   </Avatar>
