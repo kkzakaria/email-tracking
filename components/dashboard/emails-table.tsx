@@ -30,7 +30,7 @@ import {
   MailIcon,
   RefreshCwIcon,
 } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
@@ -103,11 +103,14 @@ const truncateText = (text: string, maxLength: number = 50) => {
   return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text
 }
 
-const formatDateTime = (dateString: string | null) => {
+const formatDateTime = (dateString: string | null, includeSeconds: boolean = true) => {
   if (!dateString) return "-"
   try {
-    return formatDistanceToNow(new Date(dateString), { 
-      addSuffix: true, 
+    // Format avec ou sans secondes
+    const formatString = includeSeconds 
+      ? "dd/MM/yyyy 'à' HH:mm:ss"
+      : "dd/MM/yyyy 'à' HH:mm"
+    return format(new Date(dateString), formatString, { 
       locale: fr 
     })
   } catch {
@@ -191,11 +194,11 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       header: "Envoyé",
       accessorKey: "sent_at",
       cell: ({ row }) => (
-        <div className="text-sm" title={new Date(row.getValue("sent_at")).toLocaleString("fr-FR")}>
+        <div className="text-sm">
           {formatDateTime(row.getValue("sent_at"))}
         </div>
       ),
-      size: 150,
+      size: 180, // Augmenté pour accommoder le nouveau format
     },
     {
       header: "Réponse",
@@ -205,7 +208,7 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
           {formatDateTime(row.getValue("reply_received_at"))}
         </div>
       ),
-      size: 150,
+      size: 180, // Augmenté pour accommoder le nouveau format
     },
   ], [])
 
