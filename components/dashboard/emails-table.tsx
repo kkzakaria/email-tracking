@@ -163,8 +163,11 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       header: "Sujet",
       accessorKey: "subject",
       cell: ({ row }) => (
-        <div className="font-medium" title={row.getValue("subject")}>
-          {truncateText(row.getValue("subject"))}
+        <div 
+          className="font-medium truncate max-w-[250px]" 
+          title={row.getValue("subject")}
+        >
+          {row.getValue("subject")}
         </div>
       ),
       size: 250,
@@ -175,7 +178,10 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       header: "Destinataire",
       accessorKey: "recipient_email",
       cell: ({ row }) => (
-        <div className="text-muted-foreground">
+        <div 
+          className="text-muted-foreground truncate max-w-[220px]"
+          title={row.getValue("recipient_email")}
+        >
           {row.getValue("recipient_email")}
         </div>
       ),
@@ -440,8 +446,8 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       </div>
 
       {/* Table */}
-      <div className="bg-background overflow-hidden rounded-md border">
-        <Table className="table-fixed">
+      <div className="bg-background overflow-x-auto rounded-md border">
+        <Table className="table-fixed w-full">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
