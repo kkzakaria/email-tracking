@@ -88,7 +88,17 @@ utils/supabase/        # Clients Supabase (legacy structure)
 
 - **webhook-handler** : Réceptionne webhooks Microsoft Graph, traite les notifications
 - **subscription-manager** : Actions CRUD sur subscriptions (create, renew, status, cleanup)
-- **Fonctionnalités** : Auto-renouvellement, nettoyage, gestion d'erreurs complète
+- **Fonctionnalités** : Renouvellement manuel/automatique, nettoyage, gestion d'erreurs complète
+
+#### Renouvellement Automatique (pg_cron + pg_net)
+
+- **Planification** : Jobs cron intégrés dans PostgreSQL via `pg_cron`
+- **Fréquence** : Toutes les 4 heures (optimal pour subscriptions 71h)
+- **Sécurité** : Secrets stockés dans Supabase Vault
+- **Monitoring** : Logs via `cron.job_run_details` + Dashboard Supabase
+- **Jobs configurés** :
+  - `microsoft-graph-subscription-renewal` : Renouvellement automatique
+  - `microsoft-graph-subscription-cleanup` : Nettoyage quotidien (2h du matin)
 
 #### Authentication & Security
 
@@ -104,6 +114,18 @@ utils/supabase/        # Clients Supabase (legacy structure)
 3. **Frontend**: Interface display-only avec shadcn/ui
 4. **Testing**: Via interface dashboard + logs Edge Functions
 5. **Deployment**: `supabase functions deploy` + `supabase db push`
+
+### Scripts de Maintenance
+
+```bash
+# Configuration du renouvellement automatique
+./scripts/setup-vault-secrets.sh      # Configuration secrets Vault
+./scripts/test-auto-renewal.sh        # Test du système automatique
+
+# Supabase commands
+supabase db push                       # Appliquer migrations (inclut setup cron)
+supabase functions deploy             # Déployer Edge Functions
+```
 
 ### Environment Variables - Configuration
 
@@ -138,6 +160,7 @@ WEBHOOK_CLIENT_STATE=          # Clé de sécurité validation
 - Schema PostgreSQL avec triggers automatiques
 - RLS et sécurité configurés
 - Interface display-only basique
+- **Renouvellement automatique via pg_cron** (Migration 009)
 
 🚧 **Phase 2 - Interface Reconstruction** (En cours)
 - Reconstruction progressive du frontend
