@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RealtimeProvider } from "@/components/dashboard/realtime-provider";
 import { EmailsDashboardTable } from "@/components/dashboard/emails-dashboard-table";
 import { RealtimeDebug } from "@/components/dashboard/realtime-debug";
+import { RealtimeStats } from "@/components/dashboard/realtime-stats";
 import { ModeToggle } from "@/components/mode-toggle";
-import { MailIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, Settings } from "lucide-react";
+import { MailIcon, Settings } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -19,13 +20,6 @@ export default async function DashboardPage() {
   }
 
   let emails: any[] = [];
-  let stats = {
-    pending: 0,
-    replied: 0,  
-    failed: 0,
-    expired: 0,
-    total: 0
-  };
 
   try {
     // Récupérer les emails trackés pour l'initialisation
@@ -37,15 +31,6 @@ export default async function DashboardPage() {
       
     if (emailData) {
       emails = emailData;
-      
-      // Calculer les stats depuis les données
-      stats = {
-        pending: emailData.filter(e => e.status === 'PENDING').length,
-        replied: emailData.filter(e => e.status === 'REPLIED').length,
-        failed: emailData.filter(e => e.status === 'FAILED').length,
-        expired: emailData.filter(e => e.status === 'EXPIRED').length,
-        total: emailData.length
-      };
     }
   } catch (error) {
     console.error('Erreur lors de la récupération des données:', error);
@@ -85,53 +70,9 @@ export default async function DashboardPage() {
               <RealtimeDebug />
             </div>
 
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total</CardTitle>
-                  <MailIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.total}</div>
-                  <p className="text-xs text-muted-foreground">emails envoyés</p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">En attente</CardTitle>
-                  <ClockIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                  <p className="text-xs text-muted-foreground">en cours de suivi</p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Répondus</CardTitle>
-                  <CheckCircleIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{stats.replied}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.total > 0 ? Math.round((stats.replied / stats.total) * 100) : 0}% de taux de réponse
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Échecs</CardTitle>
-                  <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">{stats.failed + stats.expired}</div>
-                  <p className="text-xs text-muted-foreground">erreurs + expirés</p>
-                </CardContent>
-              </Card>
+            {/* Statistics Cards - Now with Realtime updates */}
+            <div className="mb-6">
+              <RealtimeStats />
             </div>
 
             {/* Email Tracking Table */}

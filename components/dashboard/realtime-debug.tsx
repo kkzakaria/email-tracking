@@ -4,9 +4,16 @@ import { useRealtime } from "./realtime-provider"
 import { Badge } from "@/components/ui/badge"
 import { WifiIcon, WifiOffIcon, RefreshCwIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
 
 export function RealtimeDebug() {
   const { isConnected, error, refreshData, emails } = useRealtime()
+  const [lastUpdate, setLastUpdate] = useState<string>("")
+
+  // Mettre à jour l'heure uniquement côté client pour éviter l'erreur d'hydratation
+  useEffect(() => {
+    setLastUpdate(new Date().toLocaleTimeString())
+  }, [emails]) // Se met à jour quand les emails changent
 
   return (
     <div className="flex items-center gap-4 p-2 bg-muted/50 rounded-lg text-sm">
@@ -48,9 +55,11 @@ export function RealtimeDebug() {
         Actualiser
       </Button>
       
-      <div className="text-xs text-muted-foreground">
-        Dernière mise à jour: {new Date().toLocaleTimeString()}
-      </div>
+      {lastUpdate && (
+        <div className="text-xs text-muted-foreground">
+          Dernière mise à jour: {lastUpdate}
+        </div>
+      )}
     </div>
   )
 }
