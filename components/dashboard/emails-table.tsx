@@ -164,13 +164,13 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       accessorKey: "subject",
       cell: ({ row }) => (
         <div 
-          className="font-medium truncate max-w-[250px]" 
+          className="font-medium truncate max-w-[350px]" 
           title={row.getValue("subject")}
         >
           {row.getValue("subject")}
         </div>
       ),
-      size: 250,
+      size: 350, // Augmenté de 250 à 350
       filterFn: multiColumnFilterFn,
       enableHiding: false,
     },
@@ -179,13 +179,13 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       accessorKey: "recipient_email",
       cell: ({ row }) => (
         <div 
-          className="text-muted-foreground truncate max-w-[220px]"
+          className="text-muted-foreground truncate max-w-[200px]"
           title={row.getValue("recipient_email")}
         >
           {row.getValue("recipient_email")}
         </div>
       ),
-      size: 220,
+      size: 200, // Réduit de 220 à 200
     },
     {
       header: "Statut",
@@ -193,7 +193,7 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       cell: ({ row }) => (
         <EmailStatusBadge status={row.getValue("status")} />
       ),
-      size: 120,
+      size: 100, // Réduit de 120 à 100
       filterFn: statusFilterFn,
     },
     {
@@ -201,20 +201,20 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       accessorKey: "sent_at",
       cell: ({ row }) => (
         <div className="text-sm">
-          {formatDateTime(row.getValue("sent_at"))}
+          {formatDateTime(row.getValue("sent_at"), false)} {/* Sans les secondes */}
         </div>
       ),
-      size: 180, // Augmenté pour accommoder le nouveau format
+      size: 140, // Réduit de 180 à 140 (sans secondes)
     },
     {
       header: "Réponse",
       accessorKey: "reply_received_at",
       cell: ({ row }) => (
         <div className="text-sm text-muted-foreground">
-          {formatDateTime(row.getValue("reply_received_at"))}
+          {formatDateTime(row.getValue("reply_received_at"), false)} {/* Sans les secondes */}
         </div>
       ),
-      size: 180, // Augmenté pour accommoder le nouveau format
+      size: 140, // Réduit de 180 à 140 (sans secondes)
     },
   ], [])
 
