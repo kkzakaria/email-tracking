@@ -156,8 +156,9 @@ export function NavigationBar({ user }: NavigationBarProps) {
                   const isActive = pathname === link.href
                   return (
                     <NavigationMenuItem key={link.href}>
-                      <Link href={link.href} legacyBehavior passHref>
-                        <NavigationMenuLink 
+                      <NavigationMenuLink asChild>
+                        <Link 
+                          href={link.href}
                           className={cn(
                             navigationMenuTriggerStyle(),
                             "gap-2",
@@ -166,8 +167,8 @@ export function NavigationBar({ user }: NavigationBarProps) {
                         >
                           <Icon className="h-4 w-4" />
                           {link.label}
-                        </NavigationMenuLink>
-                      </Link>
+                        </Link>
+                      </NavigationMenuLink>
                     </NavigationMenuItem>
                   )
                 })}
