@@ -3,62 +3,38 @@
 import * as React from "react"
 import { MoonIcon, SunIcon } from "lucide-react"
 import { useTheme } from "next-themes"
-
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 export function ModeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+
+  const toggleTheme = () => {
+    // Bascule entre light et dark (ignore system pour simplicité)
+    if (resolvedTheme === "dark") {
+      setTheme("light")
+    } else {
+      setTheme("dark")
+    }
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className="relative overflow-hidden cursor-pointer"
-        >
-          <SunIcon
-            size={16}
-            className="scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-            aria-hidden="true"
-          />
-          <MoonIcon
-            size={16}
-            className="absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-            aria-hidden="true"
-          />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => setTheme("light")}
-          className="flex items-center gap-2 cursor-pointer"
-        >
-          <SunIcon size={14} />
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme("dark")}
-          className="flex items-center gap-2 cursor-pointer"
-        >
-          <MoonIcon size={14} />
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme("system")}
-          className="flex items-center gap-2 cursor-pointer"
-        >
-          <div className="size-3.5 rounded-full border border-current" />
-          System
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={toggleTheme}
+      className="h-8 w-8 p-0 relative overflow-hidden cursor-pointer"
+      aria-label="Basculer entre le mode clair et sombre"
+    >
+      <SunIcon
+        size={14}
+        className="scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
+        aria-hidden="true"
+      />
+      <MoonIcon
+        size={14}
+        className="absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
+        aria-hidden="true"
+      />
+    </Button>
   )
 }
