@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface NavigationBarProps {
   user?: {
@@ -72,6 +72,12 @@ const navigationLinks = [
 export function NavigationBar({ user }: NavigationBarProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  // Assurer que le rendu est cohérent entre serveur et client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Obtenir les initiales pour l'avatar
   const getInitials = (email?: string, name?: string) => {
@@ -114,7 +120,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
                 <nav className="flex flex-col gap-1">
                   {navigationLinks.map((link) => {
                     const Icon = link.icon
-                    const isActive = pathname === link.href
+                    const isActive = isClient && pathname === link.href
                     return (
                       <Link
                         key={link.href}
@@ -153,7 +159,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
               <NavigationMenuList>
                 {navigationLinks.map((link) => {
                   const Icon = link.icon
-                  const isActive = pathname === link.href
+                  const isActive = isClient && pathname === link.href
                   return (
                     <NavigationMenuItem key={link.href}>
                       <NavigationMenuLink asChild>
