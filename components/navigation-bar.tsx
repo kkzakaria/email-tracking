@@ -149,8 +149,8 @@ export function NavigationBar({ user }: NavigationBarProps) {
             </Link>
 
             {/* Navigation desktop */}
-            <NavigationMenu className="hidden md:flex">
-              <NavigationMenuList>
+            <NavigationMenu className="hidden md:flex items-center">
+              <NavigationMenuList className="items-center">
                 {navigationLinks.map((link) => {
                   const Icon = link.icon
                   const isActive = pathname === link.href
@@ -161,7 +161,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
                           href={link.href}
                           className={cn(
                             navigationMenuTriggerStyle(),
-                            "gap-2",
+                            "gap-2 flex items-center",
                             isActive && "bg-accent text-accent-foreground"
                           )}
                         >
