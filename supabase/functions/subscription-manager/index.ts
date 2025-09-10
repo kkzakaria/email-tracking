@@ -143,11 +143,11 @@ serve(async (req: Request) => {
 })
 
 // ====================================================================================================
-// CRÉER UNE NOUVELLE SUBSCRIPTION
+// CRÉER UNE NOUVELLE SUBSCRIPTION (DUAL: INBOX + SENT ITEMS)
 // ====================================================================================================
 async function handleCreateSubscription(user: SupabaseUser): Promise<Response> {
   try {
-    console.log('🆕 Création nouvelle subscription pour user:', user.id)
+    console.log('🆕 Création subscriptions duales pour user:', user.id)
 
     // Récupérer le token Microsoft de l'utilisateur
     const accessToken = await getUserMicrosoftToken(user.id)
@@ -162,83 +162,121 @@ async function handleCreateSubscription(user: SupabaseUser): Promise<Response> {
     const expirationDate = new Date()
     expirationDate.setHours(expirationDate.getHours() + 71) // ~3 jours
 
-    // Utilisation du token délégué : on surveille la boîte mail de l'utilisateur connecté
-    // Plus besoin de MONITORED_USER_ID car le token délégué donne accès à la boîte de l'utilisateur
-    
-    const subscription: GraphSubscription = {
-      changeType: 'created',
-      notificationUrl: WEBHOOK_BASE_URL,
-      resource: '/me/messages', // Token délégué : accès à la boîte de l'utilisateur connecté
-      expirationDateTime: expirationDate.toISOString(),
-      clientState: WEBHOOK_CLIENT_STATE,
-      latestSupportedTlsVersion: 'v1_2'
-    }
-
-    console.log('📤 Envoi subscription à Microsoft Graph:', {
-      resource: subscription.resource,
-      notificationUrl: subscription.notificationUrl,
-      expirationDateTime: subscription.expirationDateTime
-    })
-
-    // Créer la subscription via Microsoft Graph
-    const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+    // Définir les deux subscriptions : inbox + sent items
+    const subscriptions: GraphSubscription[] = [
+      {
+        changeType: 'created',
+        notificationUrl: WEBHOOK_BASE_URL,
+        resource: '/me/messages', // Messages reçus (inbox)
+        expirationDateTime: expirationDate.toISOString(),
+        clientState: WEBHOOK_CLIENT_STATE,
+        latestSupportedTlsVersion: 'v1_2'
       },
-      body: JSON.stringify(subscription)
-    })
+      {
+        changeType: 'created',
+        notificationUrl: WEBHOOK_BASE_URL,
+        resource: '/me/mailFolders/sentitems/messages', // Messages envoyés
+        expirationDateTime: expirationDate.toISOString(),
+        clientState: WEBHOOK_CLIENT_STATE,
+        latestSupportedTlsVersion: 'v1_2'
+      }
+    ]
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ Erreur création subscription Graph:', response.status, errorText)
-      throw new Error(`Graph API error: ${response.status} - ${errorText}`)
+    const createdSubscriptions: GraphSubscriptionResponse[] = []
+    let errors = 0
+
+    // Créer les deux subscriptions
+    for (const subscription of subscriptions) {
+      try {
+        console.log('📤 Envoi subscription à Microsoft Graph:', {
+          resource: subscription.resource,
+          notificationUrl: subscription.notificationUrl,
+          expirationDateTime: subscription.expirationDateTime
+        })
+
+        // Créer la subscription via Microsoft Graph
+        const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(subscription)
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('❌ Erreur création subscription Graph:', response.status, errorText, 'Resource:', subscription.resource)
+          errors++
+          continue
+        }
+
+        const graphSubscription: GraphSubscriptionResponse = await response.json()
+        console.log('✅ Subscription créée:', graphSubscription.id, 'Resource:', graphSubscription.resource)
+
+        // Sauvegarder en base de données
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        
+        const { error: dbError } = await supabase
+          .from('graph_subscriptions')
+          .insert({
+            subscription_id: graphSubscription.id,
+            resource: graphSubscription.resource,
+            notification_url: graphSubscription.notificationUrl,
+            change_types: [graphSubscription.changeType],
+            expiration_datetime: graphSubscription.expirationDateTime,
+            client_state: graphSubscription.clientState,
+            is_active: true,
+            last_renewal_at: new Date().toISOString()
+          })
+
+        if (dbError) {
+          console.error('❌ Erreur sauvegarde DB:', dbError)
+          // Tentative de supprimer la subscription Graph en cas d'erreur DB
+          await deleteGraphSubscription(accessToken, graphSubscription.id)
+          errors++
+          continue
+        }
+
+        console.log('✅ Subscription sauvegardée en DB:', graphSubscription.resource)
+        createdSubscriptions.push(graphSubscription)
+
+      } catch (error: unknown) {
+        console.error('❌ Erreur pour subscription:', subscription.resource, error)
+        errors++
+      }
     }
 
-    const graphSubscription: GraphSubscriptionResponse = await response.json()
-    console.log('✅ Subscription créée:', graphSubscription.id)
-
-    // Sauvegarder en base de données
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    const { error: dbError } = await supabase
-      .from('graph_subscriptions')
-      .insert({
-        subscription_id: graphSubscription.id,
-        resource: graphSubscription.resource,
-        notification_url: graphSubscription.notificationUrl,
-        change_types: [graphSubscription.changeType],
-        expiration_datetime: graphSubscription.expirationDateTime,
-        client_state: graphSubscription.clientState,
-        is_active: true,
-        last_renewal_at: new Date().toISOString()
-      })
-
-    if (dbError) {
-      console.error('❌ Erreur sauvegarde DB:', dbError)
-      // Tentative de supprimer la subscription Graph en cas d'erreur DB
-      await deleteGraphSubscription(accessToken, graphSubscription.id)
-      throw new Error(`Erreur base de données: ${dbError.message}`)
+    // Vérifier les résultats
+    if (createdSubscriptions.length === 0) {
+      return createCorsResponse({
+        error: 'Aucune subscription créée',
+        message: 'Toutes les subscriptions ont échoué',
+        errors
+      }, { status: 500 })
     }
 
-    console.log('✅ Subscription sauvegardée en DB')
+    const success = createdSubscriptions.length === subscriptions.length
+    const statusCode = success ? 201 : 207 // 207 = Multi-Status
 
     return createCorsResponse({
-      success: true,
-      subscription: {
-        id: graphSubscription.id,
-        resource: graphSubscription.resource,
-        expirationDateTime: graphSubscription.expirationDateTime,
-        notificationUrl: graphSubscription.notificationUrl
-      },
-      message: 'Subscription créée avec succès'
-    }, { status: 201 })
+      success,
+      subscriptions: createdSubscriptions.map(sub => ({
+        id: sub.id,
+        resource: sub.resource,
+        expirationDateTime: sub.expirationDateTime,
+        notificationUrl: sub.notificationUrl
+      })),
+      message: `${createdSubscriptions.length}/${subscriptions.length} subscriptions créées`,
+      total: subscriptions.length,
+      created: createdSubscriptions.length,
+      errors
+    }, { status: statusCode })
 
   } catch (error: unknown) {
-    console.error('❌ Erreur création subscription:', error)
+    console.error('❌ Erreur création subscriptions duales:', error)
     return createCorsResponse({
-      error: 'Erreur création subscription',
+      error: 'Erreur création subscriptions duales',
       message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
@@ -774,4 +812,4 @@ function isTokenExpired(expiresAt: string): boolean {
   return new Date(expiresAt) <= new Date()
 }
 
-console.log('🚀 Subscription Manager v2.1 ready - OAuth2 Delegated Flow')
+console.log('🚀 Subscription Manager v2.2 ready - Dual Subscriptions (Inbox + Sent Items)')

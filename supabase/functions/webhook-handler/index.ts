@@ -59,6 +59,7 @@ interface GraphMessage {
     }
   }>
   receivedDateTime?: string
+  sentDateTime?: string  // Ajouté pour les messages envoyés
   bodyPreview?: string
   isRead?: boolean
 }
@@ -193,7 +194,9 @@ async function processNotificationAsync(notification: WebhookNotification) {
       // TRAITEMENT SELON TYPE DE CHANGEMENT
       // ============================================================================================
       if (item.changeType === 'created' && item.resourceData?.id) {
-        await handleNewMessage(item.resourceData.id, item.subscriptionId)
+        // Pour déterminer si c'est un message envoyé ou reçu, nous devons d'abord
+        // récupérer le message et examiner ses métadonnées
+        await handleMessageWithAutoDetection(item.resourceData.id, item.subscriptionId)
         processed++
       } else {
         console.log('ℹ️ Type de changement ignoré:', item.changeType)
@@ -209,7 +212,123 @@ async function processNotificationAsync(notification: WebhookNotification) {
 }
 
 // ====================================================================================================
-// TRAITEMENT D'UN NOUVEAU MESSAGE
+// DÉTECTION AUTOMATIQUE ET TRAITEMENT DU MESSAGE
+// ====================================================================================================
+async function handleMessageWithAutoDetection(messageId: string, subscriptionId: string) {
+  try {
+    console.log('🔍 Récupération et analyse du message:', messageId)
+
+    // Récupérer le message pour analyser ses métadonnées
+    const graphMessage = await fetchMessageFromGraph(messageId)
+    if (!graphMessage) {
+      console.error('❌ Message non trouvé dans Graph:', messageId)
+      return
+    }
+
+    // Récupérer l'email de l'utilisateur authentifié
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const { data: tokenData } = await supabase
+      .from('microsoft_tokens')
+      .select('user_id')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    // Si nous avons l'info du user, on peut déterminer plus précisément
+    // Pour l'instant, utilisons une heuristique simple basée sur le folder
+    
+    // Essayons de déterminer si c'est un message envoyé ou reçu
+    // En vérifiant si le message est dans le dossier Sent Items
+    const isSentMessage = await checkIfMessageInSentItems(messageId)
+    
+    if (isSentMessage) {
+      console.log('📤 Message identifié comme ENVOYÉ')
+      await handleNewSentMessage(messageId, subscriptionId)
+    } else {
+      console.log('📥 Message identifié comme REÇU')
+      await handleNewMessage(messageId, subscriptionId)
+    }
+
+  } catch (error: unknown) {
+    console.error('❌ Erreur détection automatique du message:', error)
+    // En cas d'erreur, traiter comme message reçu par défaut
+    console.log('⚠️ Traitement par défaut comme message reçu')
+    await handleNewMessage(messageId, subscriptionId)
+  }
+}
+
+// ====================================================================================================
+// VÉRIFIER SI LE MESSAGE EST UN MESSAGE ENVOYÉ (MÉTHODE AMÉLIORÉE)
+// ====================================================================================================
+async function checkIfMessageInSentItems(messageId: string): Promise<boolean> {
+  try {
+    const accessToken = await getGraphAccessToken()
+    if (!accessToken) {
+      console.log('⚠️ Pas de token d\'accès disponible')
+      return false
+    }
+
+    // Récupérer le message avec ses propriétés étendues incluant parentFolderId
+    const messageResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=id,subject,from,toRecipients,parentFolderId,sentDateTime,receivedDateTime`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    if (!messageResponse.ok) {
+      console.error('❌ Impossible de récupérer le message:', messageResponse.status)
+      return false
+    }
+
+    const message = await messageResponse.json()
+    console.log('📧 Message récupéré:', {
+      subject: message.subject,
+      from: message.from?.emailAddress?.address,
+      parentFolderId: message.parentFolderId
+    })
+
+    // Récupérer l'ID du dossier Sent Items
+    const sentFolderResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/mailFolders/sentitems?$select=id`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    if (!sentFolderResponse.ok) {
+      console.error('❌ Impossible de récupérer l\'ID du dossier Sent Items')
+      return false
+    }
+
+    const sentFolder = await sentFolderResponse.json()
+    const sentFolderId = sentFolder.id
+
+    // Comparer les IDs de dossier
+    const isInSentFolder = message.parentFolderId === sentFolderId
+    
+    console.log('📁 Vérification dossier:', {
+      messageFolderId: message.parentFolderId,
+      sentFolderId: sentFolderId,
+      isInSentFolder: isInSentFolder
+    })
+
+    return isInSentFolder
+
+  } catch (error: unknown) {
+    console.error('❌ Erreur vérification message envoyé:', error)
+    return false
+  }
+}
+
+// ====================================================================================================
+// TRAITEMENT D'UN NOUVEAU MESSAGE REÇU
 // ====================================================================================================
 async function handleNewMessage(messageId: string, subscriptionId: string) {
   try {
@@ -230,6 +349,30 @@ async function handleNewMessage(messageId: string, subscriptionId: string) {
       conversationId: graphMessage.conversationId,
       from: graphMessage.from?.emailAddress?.address
     })
+
+    // ============================================================================================
+    // VALIDATION DES DONNÉES AVANT ENREGISTREMENT
+    // ============================================================================================
+    // Ne pas enregistrer les messages avec des données essentielles manquantes
+    if (!graphMessage.subject || !graphMessage.from?.emailAddress?.address) {
+      console.log('⚠️ Message incomplet, données manquantes:', {
+        hasSubject: !!graphMessage.subject,
+        hasFrom: !!graphMessage.from?.emailAddress?.address,
+        hasTo: !!graphMessage.toRecipients?.[0]?.emailAddress?.address
+      })
+      // Ne pas enregistrer ce message mais marquer l'événement comme traité
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+      await supabase
+        .from('webhook_events')
+        .update({
+          processed: true,
+          processed_at: new Date().toISOString(),
+          error_message: 'Message incomplet - données essentielles manquantes'
+        })
+        .eq('subscription_id', subscriptionId)
+        .eq('resource_id', messageId)
+      return
+    }
 
     // ============================================================================================
     // ENREGISTREMENT DU MESSAGE REÇU
@@ -291,7 +434,7 @@ async function fetchMessageFromGraph(messageId: string): Promise<GraphMessage | 
       throw new Error('Impossible d\'obtenir le token d\'accès')
     }
 
-    // Récupérer le message
+    // Récupérer le message (inbox par défaut)
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${messageId}`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -651,4 +794,135 @@ async function encryptTokensForStorage(
   }
 }
 
-console.log('🚀 Webhook Handler v2.0 ready - Supabase Edge Function')
+// ====================================================================================================
+// TRAITEMENT D'UN NOUVEAU MESSAGE ENVOYÉ
+// ====================================================================================================
+async function handleNewSentMessage(messageId: string, subscriptionId: string) {
+  try {
+    console.log('📤 Traitement nouveau message envoyé:', messageId)
+
+    // ============================================================================================
+    // RÉCUPÉRATION DU MESSAGE ENVOYÉ VIA MICROSOFT GRAPH
+    // ============================================================================================
+    const graphMessage = await fetchSentMessageFromGraph(messageId)
+    if (!graphMessage) {
+      console.error('❌ Message envoyé non trouvé dans Graph:', messageId)
+      return
+    }
+
+    console.log('✅ Message envoyé récupéré:', {
+      id: graphMessage.id,
+      subject: graphMessage.subject?.substring(0, 50),
+      conversationId: graphMessage.conversationId,
+      to: graphMessage.toRecipients?.[0]?.emailAddress?.address
+    })
+
+    // ============================================================================================
+    // VALIDATION DES DONNÉES AVANT ENREGISTREMENT
+    // ============================================================================================
+    // Ne pas enregistrer les messages envoyés avec des données essentielles manquantes
+    if (!graphMessage.subject || !graphMessage.toRecipients?.[0]?.emailAddress?.address) {
+      console.log('⚠️ Message envoyé incomplet, données manquantes:', {
+        hasSubject: !!graphMessage.subject,
+        hasFrom: !!graphMessage.from?.emailAddress?.address,
+        hasTo: !!graphMessage.toRecipients?.[0]?.emailAddress?.address
+      })
+      // Ne pas enregistrer ce message mais marquer l'événement comme traité
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+      await supabase
+        .from('webhook_events')
+        .update({
+          processed: true,
+          processed_at: new Date().toISOString(),
+          error_message: 'Message envoyé incomplet - données essentielles manquantes'
+        })
+        .eq('subscription_id', subscriptionId)
+        .eq('resource_id', messageId)
+      return
+    }
+
+    // ============================================================================================
+    // ENREGISTREMENT DU MESSAGE ENVOYÉ
+    // ============================================================================================
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    
+    const { data: messageData, error: messageError } = await supabase
+      .rpc('log_sent_message', {
+        p_graph_message_id: graphMessage.id,
+        p_internet_message_id: graphMessage.internetMessageId,
+        p_conversation_id: graphMessage.conversationId,
+        p_subject: graphMessage.subject,
+        p_from_email: graphMessage.from?.emailAddress?.address,
+        p_to_email: graphMessage.toRecipients?.[0]?.emailAddress?.address,
+        p_body_preview: graphMessage.bodyPreview?.substring(0, 500),
+        p_sent_at: graphMessage.sentDateTime ? new Date(graphMessage.sentDateTime).toISOString() : null
+      })
+
+    if (messageError) {
+      console.error('❌ Erreur enregistrement message envoyé:', messageError)
+      return
+    }
+
+    console.log('✅ Message envoyé enregistré avec ID:', messageData)
+
+    // ============================================================================================
+    // MARQUER L'ÉVÉNEMENT WEBHOOK COMME TRAITÉ
+    // ============================================================================================
+    await supabase
+      .from('webhook_events')
+      .update({
+        processed: true,
+        processed_at: new Date().toISOString()
+      })
+      .eq('subscription_id', subscriptionId)
+      .eq('resource_id', messageId)
+
+    console.log('✅ Événement webhook message envoyé marqué comme traité')
+
+    // Note: L'auto-tracking se fait automatiquement via le trigger PostgreSQL
+    // lors de l'insertion dans sent_messages
+
+  } catch (error: unknown) {
+    console.error('❌ Erreur traitement nouveau message envoyé:', error)
+    throw error
+  }
+}
+
+// ====================================================================================================
+// RÉCUPÉRATION D'UN MESSAGE ENVOYÉ VIA MICROSOFT GRAPH API
+// ====================================================================================================
+async function fetchSentMessageFromGraph(messageId: string): Promise<GraphMessage | null> {
+  try {
+    console.log('🔍 Récupération message depuis les messages généraux:', messageId)
+
+    // Obtenir le token d'accès
+    const accessToken = await getGraphAccessToken()
+    if (!accessToken) {
+      throw new Error('Impossible d\'obtenir le token d\'accès')
+    }
+
+    // Récupérer le message depuis l'API générale (pas spécifiquement sent items)
+    // Car le message pourrait ne pas être dans sent items même s'il est envoyé
+    const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${messageId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'ConsistencyLevel': 'eventual'
+      }
+    })
+
+    if (!response.ok) {
+      console.error('❌ Erreur Graph API récupération message:', response.status, await response.text())
+      return null
+    }
+
+    const message: GraphMessage = await response.json()
+    return message
+
+  } catch (error: unknown) {
+    console.error('❌ Erreur récupération message Graph:', error)
+    return null
+  }
+}
+
+console.log('🚀 Webhook Handler v2.1 ready - Supabase Edge Function with Sent Items Support')
