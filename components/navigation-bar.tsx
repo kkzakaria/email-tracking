@@ -161,7 +161,7 @@ export function NavigationBar({ user }: NavigationBarProps) {
                           href={link.href}
                           className={cn(
                             navigationMenuTriggerStyle(),
-                            "gap-2",
+                            "gap-2 !flex !items-center !justify-center",
                             isActive && "bg-accent text-accent-foreground"
                           )}
                         >
