@@ -56,10 +56,10 @@ const navigationLinks = [
     description: "Vue d'ensemble des emails trackés"
   },
   {
-    label: "Envoyer",
+    label: "Soumettre",
     href: "/dashboard/send",
     icon: Send,
-    description: "Envoyer un nouvel email avec tracking"
+    description: "Soumettre un nouvel email avec tracking"
   },
   {
     label: "Paramètres",
