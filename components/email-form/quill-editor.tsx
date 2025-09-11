@@ -88,8 +88,127 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
           ],
           handlers: {
             table: function(this: QuillHandler) {
-              const tableModule = this.quill.getModule('better-table')
-              tableModule.insertTable(3, 3)
+              // Créer une boîte de dialogue personnalisée pour les dimensions du tableau
+              const dialog = document.createElement('div')
+              dialog.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border: 2px solid #d1d5db;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                z-index: 9999;
+                font-family: inherit;
+                min-width: 300px;
+              `
+              
+              dialog.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                  <h3 style="margin: 0 0 15px 0; color: #374151; font-size: 16px;">Insérer un tableau</h3>
+                  <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; color: #374151; font-weight: 500;">Nombre de lignes :</label>
+                    <input type="number" id="table-rows" min="1" max="20" value="3" style="
+                      width: 100%;
+                      padding: 8px 12px;
+                      border: 1px solid #d1d5db;
+                      border-radius: 4px;
+                      font-size: 14px;
+                    ">
+                  </div>
+                  <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; color: #374151; font-weight: 500;">Nombre de colonnes :</label>
+                    <input type="number" id="table-cols" min="1" max="10" value="3" style="
+                      width: 100%;
+                      padding: 8px 12px;
+                      border: 1px solid #d1d5db;
+                      border-radius: 4px;
+                      font-size: 14px;
+                    ">
+                  </div>
+                  <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button id="table-cancel" style="
+                      padding: 8px 16px;
+                      border: 1px solid #d1d5db;
+                      background: white;
+                      color: #374151;
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 14px;
+                    ">Annuler</button>
+                    <button id="table-insert" style="
+                      padding: 8px 16px;
+                      border: none;
+                      background: #3b82f6;
+                      color: white;
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 14px;
+                    ">Insérer</button>
+                  </div>
+                </div>
+              `
+              
+              // Créer un overlay pour assombrir l'arrière-plan
+              const overlay = document.createElement('div')
+              overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 9998;
+              `
+              
+              document.body.appendChild(overlay)
+              document.body.appendChild(dialog)
+              
+              // Focus sur le premier input
+              const rowsInput = dialog.querySelector('#table-rows') as HTMLInputElement
+              const colsInput = dialog.querySelector('#table-cols') as HTMLInputElement
+              const insertBtn = dialog.querySelector('#table-insert') as HTMLButtonElement
+              const cancelBtn = dialog.querySelector('#table-cancel') as HTMLButtonElement
+              
+              rowsInput.focus()
+              rowsInput.select()
+              
+              const closeDialog = () => {
+                document.body.removeChild(overlay)
+                document.body.removeChild(dialog)
+              }
+              
+              const insertTable = () => {
+                const rows = parseInt(rowsInput.value) || 3
+                const cols = parseInt(colsInput.value) || 3
+                
+                // Valider les valeurs
+                if (rows >= 1 && rows <= 20 && cols >= 1 && cols <= 10) {
+                  const tableModule = this.quill.getModule('better-table')
+                  tableModule.insertTable(rows, cols)
+                  closeDialog()
+                } else {
+                  alert('Veuillez entrer des valeurs valides (lignes: 1-20, colonnes: 1-10)')
+                }
+              }
+              
+              // Gestionnaires d'événements
+              insertBtn.addEventListener('click', insertTable)
+              cancelBtn.addEventListener('click', closeDialog)
+              overlay.addEventListener('click', closeDialog)
+              
+              // Gestion de la touche Entrée
+              dialog.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  insertTable()
+                } else if (e.key === 'Escape') {
+                  e.preventDefault()
+                  closeDialog()
+                }
+              })
             }
           }
         },
