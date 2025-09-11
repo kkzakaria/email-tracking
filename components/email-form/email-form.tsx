@@ -42,9 +42,13 @@ import {
   FileUploaderContent,
   FileUploaderItem
 } from "@/components/ui/file-upload"
-import {
-  Textarea
-} from "@/components/ui/textarea"
+// Import QuillEditor directly without wrapper to avoid double toolbar
+import dynamic from 'next/dynamic'
+
+const QuillEditor = dynamic(() => import('./quill-editor'), {
+  ssr: false,
+  loading: () => <div className="h-80 animate-pulse bg-muted rounded-md" />
+})
 
 const formSchema = z.object({
   to: z.string().email("Adresse email invalide"),
@@ -89,7 +93,7 @@ export default function EmailForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-3xl mx-auto py-10">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-3xl mx-auto py-4">
         
         <FormField
           control={form.control}
@@ -164,8 +168,8 @@ export default function EmailForm() {
                         id="fileInput"
                         className="outline-dashed outline-1 outline-slate-500"
                       >
-                        <div className="flex items-center justify-center flex-col p-8 w-full ">
-                          <CloudUpload className='text-gray-500 w-10 h-10' />
+                        <div className="flex items-center justify-center flex-col p-4 w-full ">
+                          <CloudUpload className='text-gray-500 w-8 h-8' />
                           <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">
                             <span className="font-semibold">Click to upload</span>
                             &nbsp; or drag and drop
@@ -200,13 +204,15 @@ export default function EmailForm() {
             <FormItem>
               <FormLabel>Message</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Saisissez votre message ici"
-                  className="resize-none"
-                  {...field}
+                <QuillEditor
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Composez votre email ici..."
                 />
               </FormControl>
-              
+              <FormDescription>
+                Utilisez l'éditeur pour formater votre message avec du texte enrichi
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Send } from "lucide-react"
+import EmailForm from "@/components/email-form/email-form"
 
 export default function SendPage() {
   return (
@@ -11,16 +12,11 @@ export default function SendPage() {
             Soumettre un Email
           </CardTitle>
           <CardDescription>
-            Fonctionnalité de soumission d'emails avec tracking - Bientôt disponible
+            Envoyez un email avec suivi automatique des réponses
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Send className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium">Page en construction</p>
-            <p className="text-sm mt-2">L'interface de soumission d'emails sera bientôt disponible.</p>
-            <p className="text-sm mt-1">Pour l'instant, utilisez Outlook pour envoyer vos emails.</p>
-          </div>
+          <EmailForm />
         </CardContent>
       </Card>
     </div>
