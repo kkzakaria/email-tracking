@@ -29,11 +29,12 @@ const TinyMCEEditor: React.FC<TinyMCEEditorProps> = ({
         value={value}
         onEditorChange={handleEditorChange}
         tinymceScriptSrc="/tinymce/tinymce.min.js"
+        licenseKey="gpl"
         init={{
           height: 300,
           menubar: false,
           placeholder,
-          license_key: 'gpl',
+          language: 'fr_FR',
           plugins: [
             'lists', 'link', 'table', 'code', 'wordcount', 'autoresize'
           ],

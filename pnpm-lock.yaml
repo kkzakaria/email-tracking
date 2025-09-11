@@ -104,6 +104,9 @@ importers:
       tinymce:
         specifier: ^8.0.2
         version: 8.0.2
+      tinymce-i18n:
+        specifier: ^25.9.1
+        version: 25.9.1
       zod:
         specifier: ^4.1.7
         version: 4.1.7
@@ -2864,6 +2867,9 @@ packages:
   tinyglobby@0.2.14:
     resolution: {integrity: sha512-tX5e7OM1HnYr2+a2C/4V0htOcSQcoSTH9KgJnVvNm5zm/cyEWKJ7j7YutsH9CxMdtOkkLFy2AHrMci9IM8IPZQ==}
     engines: {node: '>=12.0.0'}
+
+  tinymce-i18n@25.9.1:
+    resolution: {integrity: sha512-ZH5DSOIEKdOgNHFGO+6ZlfIGu+CunhAdh69QEYQhJqJTCqVUCM7T8CjCXyUTXzwGVFtwDELdLbe58MjNfaqzpA==}
 
   tinymce@8.0.2:
     resolution: {integrity: sha512-Gkvn5mRcZCAK1EKP7hnk3VBzwqPbqpZU2AN0T08BMtvmY9Sg0C0ZqmMghJCQ3vgo+LWA38pDOPiaM8EW7BZEow==}
@@ -5974,6 +5980,8 @@ snapshots:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
+
+  tinymce-i18n@25.9.1: {}
 
   tinymce@8.0.2: {}
 
