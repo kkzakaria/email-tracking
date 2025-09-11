@@ -3,6 +3,11 @@
 import React, { forwardRef, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Quill from 'quill'
 import 'quill/dist/quill.snow.css'
+import QuillBetterTable from 'quill-better-table'
+import 'quill-better-table/dist/quill-better-table.css'
+
+// Enregistrer le module de tableau
+Quill.register('modules/better-table', QuillBetterTable)
 
 interface QuillEditorProps {
   value: string
@@ -72,11 +77,51 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
             [{ 'indent': '-1' }, { 'indent': '+1' }],
             [{ 'align': [] }],
             ['link', 'image'],
+            [{ 'table': 'TD' }],
             ['clean']
           ],
           handlers: {
-            // Custom handlers will be added here if needed
+            table: function() {
+              const tableModule = this.quill.getModule('better-table')
+              tableModule.insertTable(3, 3)
+            }
           }
+        },
+        'better-table': {
+          operationMenu: {
+            items: {
+              unmergeCells: {
+                text: 'Séparer les cellules'
+              },
+              insertColumnRight: {
+                text: 'Insérer colonne à droite'  
+              },
+              insertColumnLeft: {
+                text: 'Insérer colonne à gauche'
+              },
+              insertRowUp: {
+                text: 'Insérer ligne au-dessus'
+              },
+              insertRowDown: {
+                text: 'Insérer ligne en-dessous'
+              },
+              mergeCells: {
+                text: 'Fusionner les cellules'
+              },
+              deleteColumn: {
+                text: 'Supprimer colonne'
+              },
+              deleteRow: {
+                text: 'Supprimer ligne'
+              },
+              deleteTable: {
+                text: 'Supprimer tableau'
+              }
+            }
+          }
+        },
+        keyboard: {
+          bindings: QuillBetterTable.keyboardBindings
         }
       }
     })
@@ -110,6 +155,7 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
           { selector: '.ql-align', title: 'Alignement du texte' },
           { selector: '.ql-link', title: 'Insérer un lien' },
           { selector: '.ql-image', title: 'Insérer une image' },
+          { selector: '.ql-table', title: 'Insérer un tableau' },
           { selector: '.ql-clean', title: 'Supprimer la mise en forme' }
         ]
 
@@ -378,6 +424,45 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
         .quill-editor-container .ql-picker.ql-font .ql-picker-label::before,
         .quill-editor-container .ql-picker.ql-font .ql-picker-item::before {
           content: "Police par défaut" !important;
+        }
+        /* Styles pour les tableaux */
+        .quill-editor-container .qlbt-col-tool,
+        .quill-editor-container .qlbt-row-tool {
+          background-color: hsl(var(--background));
+          border: 1px solid hsl(var(--border));
+        }
+        .quill-editor-container .qlbt-operation-menu {
+          background-color: hsl(var(--background));
+          border: 1px solid hsl(var(--border));
+          border-radius: var(--radius);
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .quill-editor-container .qlbt-operation-menu-item {
+          color: hsl(var(--foreground));
+          padding: 8px 12px;
+          border-radius: calc(var(--radius) - 2px);
+        }
+        .quill-editor-container .qlbt-operation-menu-item:hover {
+          background-color: hsl(var(--accent));
+          color: hsl(var(--accent-foreground));
+        }
+        .quill-editor-container table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 16px 0;
+        }
+        .quill-editor-container table td,
+        .quill-editor-container table th {
+          border: 1px solid hsl(var(--border));
+          padding: 8px 12px;
+          text-align: left;
+        }
+        .quill-editor-container table th {
+          background-color: hsl(var(--muted));
+          font-weight: 600;
+        }
+        .quill-editor-container table tr:nth-child(even) {
+          background-color: hsl(var(--muted) / 0.3);
         }
       `}</style>
     </div>
