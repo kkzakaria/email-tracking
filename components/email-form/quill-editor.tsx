@@ -446,23 +446,58 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
           background-color: hsl(var(--accent));
           color: hsl(var(--accent-foreground));
         }
-        .quill-editor-container table {
-          border-collapse: collapse;
-          width: 100%;
-          margin: 16px 0;
+        /* Styles ultra-spécifiques pour les tableaux - forcer l'affichage des bordures */
+        .quill-editor-container .ql-editor table,
+        .quill-editor-wrapper .ql-editor table {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          margin: 16px 0 !important;
+          border: 2px solid #d1d5db !important;
+          background-color: white !important;
         }
-        .quill-editor-container table td,
-        .quill-editor-container table th {
-          border: 1px solid hsl(var(--border));
-          padding: 8px 12px;
-          text-align: left;
+        .quill-editor-container .ql-editor table td,
+        .quill-editor-container .ql-editor table th,
+        .quill-editor-wrapper .ql-editor table td,
+        .quill-editor-wrapper .ql-editor table th {
+          border: 1px solid #d1d5db !important;
+          padding: 8px 12px !important;
+          text-align: left !important;
+          min-width: 80px !important;
+          min-height: 40px !important;
+          background-color: white !important;
+          box-sizing: border-box !important;
         }
-        .quill-editor-container table th {
-          background-color: hsl(var(--muted));
-          font-weight: 600;
+        .quill-editor-container .ql-editor table th {
+          background-color: #f3f4f6 !important;
+          font-weight: 600 !important;
         }
-        .quill-editor-container table tr:nth-child(even) {
-          background-color: hsl(var(--muted) / 0.3);
+        .quill-editor-container .ql-editor table tr:nth-child(even) td {
+          background-color: #f9fafb !important;
+        }
+        /* Styles spécifiques pour quill-better-table */
+        .quill-editor-container .ql-editor .qlbt-table,
+        .quill-editor-container .ql-editor table[data-table-id],
+        .ql-editor .qlbt-table,
+        .ql-editor table[data-table-id] {
+          border: 2px solid #d1d5db !important;
+          border-collapse: collapse !important;
+        }
+        .quill-editor-container .ql-editor .qlbt-table td,
+        .quill-editor-container .ql-editor table[data-table-id] td,
+        .ql-editor .qlbt-table td,
+        .ql-editor table[data-table-id] td {
+          border: 1px solid #d1d5db !important;
+          border-right: 1px solid #d1d5db !important;
+          border-bottom: 1px solid #d1d5db !important;
+          border-left: 1px solid #d1d5db !important;
+          border-top: 1px solid #d1d5db !important;
+        }
+        /* Force l'affichage même si le CSS de quill-better-table interfère */
+        div[contenteditable] table {
+          border: 2px solid #d1d5db !important;
+        }
+        div[contenteditable] table td {
+          border: 1px solid #d1d5db !important;
         }
       `}</style>
     </div>
