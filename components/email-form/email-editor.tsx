@@ -14,7 +14,6 @@ import {
   Link,
   ImageIcon,
   Send,
-  Eye,
   Paperclip,
   Users,
   Mail,
@@ -28,32 +27,25 @@ export function EmailEditor() {
   const [content, setContent] = useState("")
   const [showCc, setShowCc] = useState(false)
   const [showBcc, setShowBcc] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
 
   const formatText = (command: string) => {
     document.execCommand(command, false, undefined)
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="w-full">
         {/* Main Editor */}
-        <div className="lg:col-span-2">
+        <div>
           <Card className="p-6">
             <div className="space-y-4">
               {/* Header */}
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-foreground">{"Compose Email"}</h1>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
-                    <Eye className="w-4 h-4 mr-2" />
-                    Preview
-                  </Button>
-                  <Button className="bg-secondary hover:bg-secondary/90">
-                    <Send className="w-4 h-4 mr-2" />
-                    Send
-                  </Button>
-                </div>
+                <Button className="bg-secondary hover:bg-secondary/90">
+                  <Send className="w-4 h-4 mr-2" />
+                  Send
+                </Button>
               </div>
 
               <Separator />
@@ -175,41 +167,6 @@ export function EmailEditor() {
             </div>
           </Card>
         </div>
-
-        {/* Preview Pane */}
-        {showPreview && (
-          <div className="lg:col-span-1">
-            <Card className="p-6 bg-sidebar">
-              <h3 className="text-lg font-semibold mb-4 text-sidebar-foreground">{"Email Preview"}</h3>
-              <div className="space-y-3">
-                <div className="text-sm">
-                  <span className="font-medium text-sidebar-foreground">{"To: "}</span>
-                  <span className="text-muted">{to || "recipient@example.com"}</span>
-                </div>
-                {cc && (
-                  <div className="text-sm">
-                    <span className="font-medium text-sidebar-foreground">{"Cc: "}</span>
-                    <span className="text-muted">{cc}</span>
-                  </div>
-                )}
-                {bcc && (
-                  <div className="text-sm">
-                    <span className="font-medium text-sidebar-foreground">{"Bcc: "}</span>
-                    <span className="text-muted">{bcc}</span>
-                  </div>
-                )}
-                <div className="text-sm">
-                  <span className="font-medium text-sidebar-foreground">{"Subject: "}</span>
-                  <span className="text-muted">{subject || "No subject"}</span>
-                </div>
-                <Separator />
-                <div className="text-sm text-sidebar-foreground leading-relaxed whitespace-pre-wrap">
-                  {content || "Start typing your email content..."}
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   )
