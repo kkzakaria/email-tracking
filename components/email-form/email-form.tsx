@@ -1,8 +1,5 @@
 "use client"
 import {
-  useState
-} from "react"
-import {
   toast
 } from "sonner"
 import {
@@ -15,15 +12,11 @@ import {
   z
 } from "zod"
 import {
-  cn
-} from "@/lib/utils"
-import {
   Button
 } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -32,16 +25,6 @@ import {
 import {
   Input
 } from "@/components/ui/input"
-import {
-  CloudUpload,
-  Paperclip
-} from "lucide-react"
-import {
-  FileInput,
-  FileUploader,
-  FileUploaderContent,
-  FileUploaderItem
-} from "@/components/ui/file-upload"
 // Import Quill Editor
 import dynamic from 'next/dynamic'
 
@@ -54,19 +37,10 @@ const formSchema = z.object({
   to: z.string().email("Adresse email invalide"),
   cc: z.string().optional(),
   subject: z.string().min(1, "L'objet est requis"),
-  attachments: z.any().optional(),
   message: z.string().min(1, "Le message est requis")
 });
 
 export default function EmailForm() {
-
-  const [files, setFiles] = useState<File[] | null>(null);
-
-  const dropZoneConfig = {
-    maxFiles: 5,
-    maxSize: 1024 * 1024 * 4,
-    multiple: true,
-  };
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -108,7 +82,6 @@ export default function EmailForm() {
                   {...field} 
                 />
               </FormControl>
-              <FormDescription>Adresse email du destinataire</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -127,7 +100,6 @@ export default function EmailForm() {
                   {...field} 
                 />
               </FormControl>
-              <FormDescription>Adresse(s) email en copie (séparées par des virgules)</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -150,53 +122,6 @@ export default function EmailForm() {
             </FormItem>
           )}
         />
-        
-            <FormField
-              control={form.control}
-              name="attachments"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Pièce(s) jointe(s)</FormLabel>
-                  <FormControl>
-                    <FileUploader
-                      value={files}
-                      onValueChange={setFiles}
-                      dropzoneOptions={dropZoneConfig}
-                      className="relative bg-background rounded-lg p-2"
-                    >
-                      <FileInput
-                        id="fileInput"
-                        className="outline-dashed outline-1 outline-slate-500"
-                      >
-                        <div className="flex items-center justify-center flex-col p-4 w-full ">
-                          <CloudUpload className='text-gray-500 w-8 h-8' />
-                          <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">
-                            <span className="font-semibold">Click to upload</span>
-                            &nbsp; or drag and drop
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            SVG, PNG, JPG or GIF
-                          </p>
-                        </div>
-                      </FileInput>
-                      <FileUploaderContent>
-                        {files &&
-                          files.length > 0 &&
-                          files.map((file, i) => (
-                            <FileUploaderItem key={i} index={i}>
-                              <Paperclip className="h-4 w-4 stroke-current" />
-                              <span>{file.name}</span>
-                            </FileUploaderItem>
-                          ))}
-                      </FileUploaderContent>
-                    </FileUploader>
-                  </FormControl>
-                  <FormDescription>Sélectionnez votre pièce jointe</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-        
         <FormField
           control={form.control}
           name="message"
@@ -210,9 +135,6 @@ export default function EmailForm() {
                   placeholder="Composez votre email ici..."
                 />
               </FormControl>
-              <FormDescription>
-                Utilisez l'éditeur pour formater votre message avec du texte enrichi
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
