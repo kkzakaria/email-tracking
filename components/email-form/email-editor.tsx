@@ -43,7 +43,7 @@ export function EmailEditor() {
               {/* Header */}
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-foreground">{"Composer un email"}</h1>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer">
+                <Button className="bg-blue-700 hover:bg-blue-800 text-white cursor-pointer">
                   <Send className="w-4 h-4 mr-2" />
                   Envoyer
                 </Button>
