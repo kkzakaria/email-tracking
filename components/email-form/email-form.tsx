@@ -42,10 +42,10 @@ import {
   FileUploaderContent,
   FileUploaderItem
 } from "@/components/ui/file-upload"
-// Import QuillEditor directly without wrapper to avoid double toolbar
+// Import TinyMCE Editor
 import dynamic from 'next/dynamic'
 
-const QuillEditor = dynamic(() => import('./quill-editor'), {
+const TinyMCEEditor = dynamic(() => import('./tinymce-editor'), {
   ssr: false,
   loading: () => <div className="h-80 animate-pulse bg-muted rounded-md" />
 })
@@ -204,7 +204,7 @@ export default function EmailForm() {
             <FormItem>
               <FormLabel>Message</FormLabel>
               <FormControl>
-                <QuillEditor
+                <TinyMCEEditor
                   value={field.value}
                   onChange={field.onChange}
                   placeholder="Composez votre email ici..."
