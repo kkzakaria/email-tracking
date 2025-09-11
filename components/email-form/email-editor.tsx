@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import {
   Bold,
   Italic,
@@ -41,10 +42,10 @@ export function EmailEditor() {
             <div className="space-y-4">
               {/* Header */}
               <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-foreground">{"Compose Email"}</h1>
-                <Button className="bg-secondary hover:bg-secondary/90">
+                <h1 className="text-2xl font-bold text-foreground">{"Composer un email"}</h1>
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer">
                   <Send className="w-4 h-4 mr-2" />
-                  Send
+                  Envoyer
                 </Button>
               </div>
 
@@ -53,13 +54,13 @@ export function EmailEditor() {
               {/* Recipient Fields */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-muted" />
-                  <Input placeholder="To" value={to} onChange={(e) => setTo(e.target.value)} className="flex-1" />
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <Input placeholder="À" value={to} onChange={(e) => setTo(e.target.value)} className="flex-1" />
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowCc(!showCc)}
-                    className="text-muted hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
                   >
                     Cc
                   </Button>
@@ -67,28 +68,28 @@ export function EmailEditor() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowBcc(!showBcc)}
-                    className="text-muted hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
                   >
-                    Bcc
+                    Cci
                   </Button>
                 </div>
 
                 {showCc && (
                   <div className="flex items-center gap-3">
-                    <Users className="w-4 h-4 text-muted" />
+                    <Users className="w-4 h-4 text-muted-foreground" />
                     <Input placeholder="Cc" value={cc} onChange={(e) => setCc(e.target.value)} className="flex-1" />
                   </div>
                 )}
 
                 {showBcc && (
                   <div className="flex items-center gap-3">
-                    <Users className="w-4 h-4 text-muted" />
-                    <Input placeholder="Bcc" value={bcc} onChange={(e) => setBcc(e.target.value)} className="flex-1" />
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <Input placeholder="Cci" value={bcc} onChange={(e) => setBcc(e.target.value)} className="flex-1" />
                   </div>
                 )}
 
                 <Input
-                  placeholder="Subject"
+                  placeholder="Sujet"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   className="text-lg font-medium"
@@ -98,59 +99,99 @@ export function EmailEditor() {
               <Separator />
 
               {/* Formatting Toolbar */}
-              <Card className="p-3 bg-card">
+              <Card className="p-3 bg-muted/30 border">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => formatText("bold")}
-                    className="hover:bg-secondary/20"
-                  >
-                    <Bold className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => formatText("italic")}
-                    className="hover:bg-secondary/20"
-                  >
-                    <Italic className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => formatText("underline")}
-                    className="hover:bg-secondary/20"
-                  >
-                    <Underline className="w-4 h-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => formatText("bold")}
+                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
+                      >
+                        <Bold className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Gras</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => formatText("italic")}
+                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
+                      >
+                        <Italic className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Italique</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => formatText("underline")}
+                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
+                      >
+                        <Underline className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Souligné</TooltipContent>
+                  </Tooltip>
                   <Separator orientation="vertical" className="h-6" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => formatText("insertUnorderedList")}
-                    className="hover:bg-secondary/20"
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => formatText("insertOrderedList")}
-                    className="hover:bg-secondary/20"
-                  >
-                    <ListOrdered className="w-4 h-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => formatText("insertUnorderedList")}
+                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
+                      >
+                        <List className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Liste à puces</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => formatText("insertOrderedList")}
+                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
+                      >
+                        <ListOrdered className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Liste numérotée</TooltipContent>
+                  </Tooltip>
                   <Separator orientation="vertical" className="h-6" />
-                  <Button variant="ghost" size="sm" className="hover:bg-secondary/20">
-                    <Link className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="hover:bg-secondary/20">
-                    <ImageIcon className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="hover:bg-secondary/20">
-                    <Paperclip className="w-4 h-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer">
+                        <Link className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Insérer un lien</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer">
+                        <ImageIcon className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Insérer une image</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer">
+                        <Paperclip className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Joindre un fichier</TooltipContent>
+                  </Tooltip>
                 </div>
               </Card>
 
