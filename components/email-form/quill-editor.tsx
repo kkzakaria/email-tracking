@@ -21,6 +21,12 @@ interface QuillToolbar {
   addHandler: (format: string, handler: () => void) => void
 }
 
+interface QuillHandler {
+  quill: {
+    getModule: (name: string) => any
+  }
+}
+
 const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({ 
   value, 
   onChange,
@@ -81,7 +87,7 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
             ['clean']
           ],
           handlers: {
-            table: function(this: any) {
+            table: function(this: QuillHandler) {
               const tableModule = this.quill.getModule('better-table')
               tableModule.insertTable(3, 3)
             }
