@@ -63,7 +63,10 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
         toolbar: {
           container: [
             [{ 'header': [1, 2, 3, false] }],
+            [{ 'font': [] }],
+            [{ 'size': ['small', false, 'large', 'huge'] }],
             ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
             ['blockquote', 'code-block'],
             [{ 'list': 'ordered' }, { 'list': 'bullet' }],
             [{ 'indent': '-1' }, { 'indent': '+1' }],
@@ -94,6 +97,10 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
           { selector: '.ql-italic', title: 'Italique (Ctrl+I)' },
           { selector: '.ql-underline', title: 'Souligné (Ctrl+U)' },
           { selector: '.ql-strike', title: 'Barré' },
+          { selector: '.ql-font', title: 'Police de caractères' },
+          { selector: '.ql-size', title: 'Taille du texte' },
+          { selector: '.ql-color', title: 'Couleur du texte' },
+          { selector: '.ql-background', title: 'Couleur de fond' },
           { selector: '.ql-blockquote', title: 'Citation' },
           { selector: '.ql-code-block', title: 'Bloc de code' },
           { selector: '.ql-list[value="ordered"]', title: 'Liste numérotée' },
@@ -349,6 +356,28 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
         .quill-editor-container .ql-picker.ql-header .ql-picker-label[data-value="3"]::before,
         .quill-editor-container .ql-picker.ql-header .ql-picker-item[data-value="3"]::before {
           content: "Titre 3" !important;
+        }
+        /* Labels français pour la taille */
+        .quill-editor-container .ql-picker.ql-size .ql-picker-label::before,
+        .quill-editor-container .ql-picker.ql-size .ql-picker-item::before {
+          content: "Normal" !important;
+        }
+        .quill-editor-container .ql-picker.ql-size .ql-picker-label[data-value="small"]::before,
+        .quill-editor-container .ql-picker.ql-size .ql-picker-item[data-value="small"]::before {
+          content: "Petit" !important;
+        }
+        .quill-editor-container .ql-picker.ql-size .ql-picker-label[data-value="large"]::before,
+        .quill-editor-container .ql-picker.ql-size .ql-picker-item[data-value="large"]::before {
+          content: "Grand" !important;
+        }
+        .quill-editor-container .ql-picker.ql-size .ql-picker-label[data-value="huge"]::before,
+        .quill-editor-container .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before {
+          content: "Très grand" !important;
+        }
+        /* Labels français pour la police */
+        .quill-editor-container .ql-picker.ql-font .ql-picker-label::before,
+        .quill-editor-container .ql-picker.ql-font .ql-picker-item::before {
+          content: "Police par défaut" !important;
         }
       `}</style>
     </div>
