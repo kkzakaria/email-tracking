@@ -458,5 +458,12 @@ tinymce.addI18n('fr_FR',{
 "Prev": "Pr\u00e9c ",
 "Find and replace": "Trouver et remplacer",
 "Whole words": "Mots entiers",
-"Insert template": "Ajouter un th\u00e8me"
+"Insert template": "Ajouter un th\u00e8me",
+"More options": "Plus d'options",
+"Options": "Options",
+"Show more": "Afficher plus",
+"Toolbar options": "Options de la barre d'outils",
+"Show blocks": "Afficher les blocs",
+"Show invisible characters": "Afficher les caract\u00e8res invisibles",
+"Reveal or hide additional toolbar items": "Afficher ou masquer les éléments supplémentaires de la barre d'outils"
 });
