@@ -12,6 +12,10 @@ interface QuillEditorProps {
   readOnly?: boolean
 }
 
+interface QuillToolbar {
+  addHandler: (format: string, handler: () => void) => void
+}
+
 const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({ 
   value, 
   onChange,
@@ -87,8 +91,8 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
     quill.on('text-change', textChangeHandler)
 
     // Handle image uploads
-    const toolbar = quill.getModule('toolbar')
-    if (toolbar) {
+    const toolbar = quill.getModule('toolbar') as QuillToolbar | null
+    if (toolbar && 'addHandler' in toolbar) {
       toolbar.addHandler('image', () => {
         const input = document.createElement('input')
         input.setAttribute('type', 'file')
