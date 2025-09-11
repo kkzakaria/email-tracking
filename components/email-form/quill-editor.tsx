@@ -81,7 +81,7 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
             ['clean']
           ],
           handlers: {
-            table: function() {
+            table: function(this: any) {
               const tableModule = this.quill.getModule('better-table')
               tableModule.insertTable(3, 3)
             }
