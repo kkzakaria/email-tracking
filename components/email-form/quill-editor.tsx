@@ -60,18 +60,82 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
       theme: 'snow',
       placeholder,
       modules: {
-        toolbar: [
-          [{ 'header': [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          ['blockquote', 'code-block'],
-          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-          [{ 'indent': '-1' }, { 'indent': '+1' }],
-          [{ 'align': [] }],
-          ['link', 'image'],
-          ['clean']
-        ]
+        toolbar: {
+          container: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            ['blockquote', 'code-block'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            [{ 'indent': '-1' }, { 'indent': '+1' }],
+            [{ 'align': [] }],
+            ['link', 'image'],
+            ['clean']
+          ],
+          handlers: {
+            // Custom handlers will be added here if needed
+          }
+        }
       }
     })
+
+    // Configure French tooltips and labels after initialization
+    setTimeout(() => {
+      const toolbar = quill.container.previousSibling as HTMLElement
+      if (toolbar && toolbar.classList.contains('ql-toolbar')) {
+        // Configure header picker
+        const headerPicker = toolbar.querySelector('.ql-header .ql-picker-label')
+        if (headerPicker) {
+          headerPicker.setAttribute('title', 'Format de titre')
+        }
+
+        // Configure format buttons with French tooltips
+        const buttons = [
+          { selector: '.ql-bold', title: 'Gras (Ctrl+B)' },
+          { selector: '.ql-italic', title: 'Italique (Ctrl+I)' },
+          { selector: '.ql-underline', title: 'Souligné (Ctrl+U)' },
+          { selector: '.ql-strike', title: 'Barré' },
+          { selector: '.ql-blockquote', title: 'Citation' },
+          { selector: '.ql-code-block', title: 'Bloc de code' },
+          { selector: '.ql-list[value="ordered"]', title: 'Liste numérotée' },
+          { selector: '.ql-list[value="bullet"]', title: 'Liste à puces' },
+          { selector: '.ql-indent[value="-1"]', title: 'Diminuer le retrait' },
+          { selector: '.ql-indent[value="+1"]', title: 'Augmenter le retrait' },
+          { selector: '.ql-align', title: 'Alignement du texte' },
+          { selector: '.ql-link', title: 'Insérer un lien' },
+          { selector: '.ql-image', title: 'Insérer une image' },
+          { selector: '.ql-clean', title: 'Supprimer la mise en forme' }
+        ]
+
+        buttons.forEach(({ selector, title }) => {
+          const element = toolbar.querySelector(selector)
+          if (element) {
+            element.setAttribute('title', title)
+          }
+        })
+
+        // Configure align picker options
+        const alignPicker = toolbar.querySelector('.ql-align')
+        if (alignPicker) {
+          alignPicker.setAttribute('title', 'Alignement du texte')
+          const alignOptions = alignPicker.querySelectorAll('.ql-picker-item')
+          const alignTitles = ['Aligner à gauche', 'Centrer', 'Aligner à droite', 'Justifier']
+          alignOptions.forEach((option, index) => {
+            if (alignTitles[index]) {
+              option.setAttribute('title', alignTitles[index])
+            }
+          })
+        }
+
+        // Configure header picker options
+        const headerPickerItems = toolbar.querySelectorAll('.ql-header .ql-picker-item')
+        const headerTitles = ['Titre 1', 'Titre 2', 'Titre 3', 'Paragraphe normal']
+        headerPickerItems.forEach((item, index) => {
+          if (headerTitles[index]) {
+            item.setAttribute('title', headerTitles[index])
+          }
+        })
+      }
+    }, 100)
 
     // Set initial content
     if (value && value !== '<p><br></p>') {
@@ -250,6 +314,41 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
           background-color: hsl(var(--background));
           border: 1px solid hsl(var(--border));
           border-radius: var(--radius);
+        }
+        /* Localisation française des tooltips et labels */
+        .quill-editor-container .ql-tooltip[data-mode=link]::before {
+          content: "Entrer le lien:" !important;
+        }
+        .quill-editor-container .ql-tooltip[data-mode=video]::before {
+          content: "Entrer la vidéo:" !important;
+        }
+        .quill-editor-container .ql-tooltip.ql-editing a.ql-action::after {
+          content: "Modifier" !important;
+        }
+        .quill-editor-container .ql-tooltip a.ql-action::after {
+          content: "Modifier" !important;
+        }
+        .quill-editor-container .ql-tooltip a.ql-remove::before {
+          content: "Supprimer" !important;
+        }
+        .quill-editor-container .ql-snow .ql-tooltip[data-mode=link] input[type=text] {
+          font-size: 13px;
+        }
+        .quill-editor-container .ql-picker.ql-header .ql-picker-label::before,
+        .quill-editor-container .ql-picker.ql-header .ql-picker-item::before {
+          content: "Paragraphe" !important;
+        }
+        .quill-editor-container .ql-picker.ql-header .ql-picker-label[data-value="1"]::before,
+        .quill-editor-container .ql-picker.ql-header .ql-picker-item[data-value="1"]::before {
+          content: "Titre 1" !important;
+        }
+        .quill-editor-container .ql-picker.ql-header .ql-picker-label[data-value="2"]::before,
+        .quill-editor-container .ql-picker.ql-header .ql-picker-item[data-value="2"]::before {
+          content: "Titre 2" !important;
+        }
+        .quill-editor-container .ql-picker.ql-header .ql-picker-label[data-value="3"]::before,
+        .quill-editor-container .ql-picker.ql-header .ql-picker-item[data-value="3"]::before {
+          content: "Titre 3" !important;
         }
       `}</style>
     </div>
