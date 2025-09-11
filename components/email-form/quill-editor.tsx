@@ -192,30 +192,64 @@ const QuillEditor = forwardRef<Quill | null, QuillEditorProps>(({
       <style jsx global>{`
         .quill-editor-wrapper {
           position: relative;
+          border: 1px solid hsl(var(--border));
+          border-radius: calc(var(--radius) - 2px);
+          background-color: hsl(var(--background));
         }
-        .quill-editor-container {
-          min-height: 300px;
-        }
-        .quill-editor-wrapper .ql-container {
+        .quill-editor-container .ql-container {
           font-size: 14px;
-          font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          font-family: inherit;
+          border: none !important;
+          background-color: transparent;
         }
-        .quill-editor-wrapper .ql-editor {
+        .quill-editor-container .ql-editor {
           min-height: 250px;
           line-height: 1.6;
+          padding: 12px 15px;
+          background-color: transparent;
+          color: hsl(var(--foreground));
         }
-        .quill-editor-wrapper .ql-editor.ql-blank::before {
+        .quill-editor-container .ql-editor.ql-blank::before {
           font-style: italic;
-          color: #999;
+          color: hsl(var(--muted-foreground));
+          opacity: 0.7;
         }
-        .quill-editor-wrapper .ql-toolbar.ql-snow {
-          border: 1px solid hsl(var(--border));
-          border-bottom: none;
-          border-radius: var(--radius) var(--radius) 0 0;
+        .quill-editor-container .ql-toolbar.ql-snow {
+          border: none !important;
+          border-bottom: 1px solid hsl(var(--border)) !important;
+          border-radius: calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0 0;
+          padding: 8px 12px;
+          background-color: hsl(var(--background));
         }
-        .quill-editor-wrapper .ql-container.ql-snow {
+        .quill-editor-container .ql-container.ql-snow {
+          border: none !important;
+          border-radius: 0 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px);
+          background-color: transparent;
+        }
+        .quill-editor-container .ql-toolbar .ql-formats {
+          margin-right: 15px;
+        }
+        .quill-editor-container .ql-toolbar button {
+          padding: 3px 5px;
+          margin: 0 1px;
+          border-radius: calc(var(--radius) - 4px);
+          color: hsl(var(--foreground));
+        }
+        .quill-editor-container .ql-toolbar button:hover {
+          background-color: hsl(var(--accent));
+          color: hsl(var(--accent-foreground));
+        }
+        .quill-editor-container .ql-toolbar button.ql-active {
+          background-color: hsl(var(--accent));
+          color: hsl(var(--accent-foreground));
+        }
+        .quill-editor-container .ql-toolbar .ql-picker-label {
+          color: hsl(var(--foreground));
+        }
+        .quill-editor-container .ql-toolbar .ql-picker-options {
+          background-color: hsl(var(--background));
           border: 1px solid hsl(var(--border));
-          border-radius: 0 0 var(--radius) var(--radius);
+          border-radius: var(--radius);
         }
       `}</style>
     </div>
