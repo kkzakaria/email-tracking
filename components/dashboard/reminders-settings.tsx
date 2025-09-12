@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -118,11 +118,55 @@ export function RemindersSettings() {
     setExcludedEmails(excludedEmails.filter(e => e !== email))
   }
 
-  const templates = {
+  // État pour les templates avec tous les templates possibles
+  const [templates, setTemplates] = useState({
     first: "Bonjour {{nom}},\n\nJe me permets de relancer concernant mon email précédent.\n\nPourriez-vous me faire savoir si vous avez eu l'occasion de le consulter ?\n\nCordialement,\n{{signature}}",
     second: "Bonjour {{nom}},\n\nJe reviens vers vous concernant ma demande du {{date}}.\n\nSerait-il possible d'avoir un retour de votre part ?\n\nMerci pour votre attention.\n\n{{signature}}",
+    third: "Bonjour {{nom}},\n\nTroisième tentative concernant {{sujet}}. J'aimerais vraiment avoir votre retour sur cette proposition.\n\nCordialement,\n{{signature}}",
+    fourth: "Bonjour {{nom}},\n\nQuatrième relance concernant {{sujet}}. Une réponse même négative m'aiderait à comprendre votre position.\n\nCordialement,\n{{signature}}",
     final: "Bonjour {{nom}},\n\nC'est ma dernière relance concernant {{sujet}}.\n\nSi vous n'êtes pas la bonne personne, pourriez-vous me rediriger ?\n\nMerci,\n{{signature}}"
+  })
+
+  // Fonction pour générer le libellé d'un onglet de template
+  const generateTemplateLabel = (index: number, total: number) => {
+    if (total === 1) return "Relance unique"
+    if (index === total) return "Dernière relance"
+    if (index === 1) return "1ère relance"
+    if (index === 2) return "2ème relance"
+    return `${index}ème relance`
   }
+
+  // Fonction pour obtenir la clé de template appropriée
+  const getTemplateKey = (index: number, total: number): keyof typeof templates => {
+    if (total === 1) return "first"
+    if (index === total && total > 1) return "final"
+    const keys: (keyof typeof templates)[] = ["first", "second", "third", "fourth", "final"]
+    return keys[index - 1] || "final"
+  }
+
+  // Observer les changements du nombre de relances pour réinitialiser l'onglet actif si nécessaire  
+  const maxReminders = form.watch("maxReminders")
+  const [activeTemplateTab, setActiveTemplateTab] = useState("1")
+
+  // Fonction pour obtenir la classe CSS appropriée pour la grille
+  const getGridColsClass = (count: number) => {
+    const classes = {
+      1: "grid-cols-1",
+      2: "grid-cols-2", 
+      3: "grid-cols-3",
+      4: "grid-cols-4",
+      5: "grid-cols-5"
+    }
+    return classes[count as keyof typeof classes] || "grid-cols-3"
+  }
+
+  // Effect pour réinitialiser l'onglet actif si nécessaire quand le nombre de relances change
+  useEffect(() => {
+    const currentTab = parseInt(activeTemplateTab)
+    if (currentTab > maxReminders) {
+      setActiveTemplateTab("1")
+    }
+  }, [maxReminders, activeTemplateTab])
 
   return (
     <div className="space-y-6">
@@ -411,45 +455,31 @@ export function RemindersSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="first">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="first">1ère relance</TabsTrigger>
-              <TabsTrigger value="second">2ème relance</TabsTrigger>
-              <TabsTrigger value="final">Dernière relance</TabsTrigger>
+          <Tabs value={activeTemplateTab} onValueChange={setActiveTemplateTab}>
+            <TabsList className={`grid w-full ${getGridColsClass(maxReminders)}`}>
+              {Array.from({ length: maxReminders }, (_, i) => i + 1).map((index) => (
+                <TabsTrigger key={index} value={index.toString()}>
+                  {generateTemplateLabel(index, maxReminders)}
+                </TabsTrigger>
+              ))}
             </TabsList>
             
-            <TabsContent value="first" className="space-y-4">
-              <Textarea 
-                defaultValue={templates.first}
-                placeholder="Template de la première relance"
-                className="min-h-32"
-              />
-              <div className="text-xs text-muted-foreground">
-                Variables disponibles : {"{nom}"}, {"{entreprise}"}, {"{date}"}, {"{sujet}"}, {"{signature}"}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="second" className="space-y-4">
-              <Textarea 
-                defaultValue={templates.second}
-                placeholder="Template de la deuxième relance"
-                className="min-h-32"
-              />
-              <div className="text-xs text-muted-foreground">
-                Variables disponibles : {"{nom}"}, {"{entreprise}"}, {"{date}"}, {"{sujet}"}, {"{signature}"}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="final" className="space-y-4">
-              <Textarea 
-                defaultValue={templates.final}
-                placeholder="Template de la dernière relance"
-                className="min-h-32"
-              />
-              <div className="text-xs text-muted-foreground">
-                Variables disponibles : {"{nom}"}, {"{entreprise}"}, {"{date}"}, {"{sujet}"}, {"{signature}"}
-              </div>
-            </TabsContent>
+            {Array.from({ length: maxReminders }, (_, i) => i + 1).map((index) => {
+              const templateKey = getTemplateKey(index, maxReminders)
+              return (
+                <TabsContent key={index} value={index.toString()} className="space-y-4">
+                  <Textarea 
+                    value={templates[templateKey]}
+                    onChange={(e) => setTemplates(prev => ({ ...prev, [templateKey]: e.target.value }))}
+                    placeholder={`Template ${generateTemplateLabel(index, maxReminders).toLowerCase()}`}
+                    className="min-h-32"
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    Variables disponibles : {"{nom}"}, {"{entreprise}"}, {"{date}"}, {"{sujet}"}, {"{signature}"}
+                  </div>
+                </TabsContent>
+              )
+            })}
           </Tabs>
         </CardContent>
       </Card>
