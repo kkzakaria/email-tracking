@@ -22,7 +22,7 @@ export default async function SettingsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Tabs for different settings categories */}
-        <Tabs defaultValue="system" className="w-full">
+        <Tabs defaultValue="users" className="w-full">
           <div className="sticky top-12 z-40 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900 pt-2 pb-2">
             <TabsList className="grid w-full grid-cols-4 h-10 p-1 bg-white dark:bg-gray-800 shadow-sm">
             <TabsTrigger value="users" className="flex items-center justify-center gap-2 data-[state=active]:bg-gray-900 dark:data-[state=active]:bg-white data-[state=active]:text-white dark:data-[state=active]:text-gray-900 data-[state=active]:shadow-sm">
