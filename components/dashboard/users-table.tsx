@@ -54,6 +54,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { AddUserModal } from "@/components/dashboard/add-user-modal"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -357,6 +358,19 @@ export default function UsersTable() {
     )
     setData(updatedData)
     table.resetRowSelection()
+  }
+
+  const handleAddUser = (newUser: { name: string; email: string; role: "Admin" | "Utilisateur" | "Lecteur" }) => {
+    const user: UserItem = {
+      id: (data.length + 1).toString(),
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      status: "Actif", // Directement actif puisqu'on crée l'utilisateur directement
+      lastLogin: new Date().toISOString(),
+      // TODO: À l'avenir avec invitation - status: "En attente"
+    }
+    setData([...data, user])
   }
 
   const table = useReactTable({
@@ -686,14 +700,7 @@ export default function UsersTable() {
             </AlertDialog>
           )}
           {/* Add user button */}
-          <Button className="ml-auto">
-            <PlusIcon
-              className="-ms-1 opacity-60"
-              size={16}
-              aria-hidden="true"
-            />
-            Ajouter un utilisateur
-          </Button>
+          <AddUserModal onAddUser={handleAddUser} />
         </div>
       </div>
 
