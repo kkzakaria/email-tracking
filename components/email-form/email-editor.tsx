@@ -56,6 +56,8 @@ export function EmailEditor() {
   const [currentAlignment, setCurrentAlignment] = useState("left")
   const [currentStyle, setCurrentStyle] = useState("normal")
   const editorRef = useRef<HTMLDivElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const formatText = (command: string, value?: string) => {
     document.execCommand(command, false, value)
@@ -100,10 +102,109 @@ export function EmailEditor() {
   }
 
   const insertImage = () => {
-    const url = prompt("Entrez l'URL de l'image:")
-    if (url) {
-      formatText("insertImage", url)
+    if (!imageInputRef.current) {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.style.display = 'none'
+      document.body.appendChild(input)
+      imageInputRef.current = input
     }
+    
+    imageInputRef.current.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) {
+        // Vérifier la taille du fichier (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert("L'image est trop volumineuse. Taille maximale : 5MB")
+          return
+        }
+        
+        // Vérifier le type de fichier
+        if (!file.type.startsWith('image/')) {
+          alert("Veuillez sélectionner un fichier image valide")
+          return
+        }
+        
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          const imageUrl = event.target?.result as string
+          if (imageUrl) {
+            formatText('insertImage', imageUrl)
+          }
+        }
+        reader.onerror = () => {
+          alert("Erreur lors du chargement de l'image")
+        }
+        reader.readAsDataURL(file)
+      }
+      // Reset input value pour permettre de sélectionner le même fichier
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
+    }
+    
+    imageInputRef.current.click()
+  }
+
+  const insertFile = () => {
+    if (!fileInputRef.current) {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '*/*'
+      input.style.display = 'none'
+      document.body.appendChild(input)
+      fileInputRef.current = input
+    }
+    
+    fileInputRef.current.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) {
+        // Vérifier la taille du fichier (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          alert("Le fichier est trop volumineux. Taille maximale : 10MB")
+          return
+        }
+        
+        try {
+          // Créer un lien vers le fichier
+          const fileUrl = URL.createObjectURL(file)
+          const fileName = file.name
+          const fileSize = file.size < 1024 * 1024 
+            ? (file.size / 1024).toFixed(1) + ' KB'
+            : (file.size / 1024 / 1024).toFixed(1) + ' MB'
+          
+          // Insérer un lien avec le nom du fichier
+          const selection = window.getSelection()
+          if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0)
+            const link = document.createElement('a')
+            link.href = fileUrl
+            link.download = fileName
+            link.textContent = `📎 ${fileName} (${fileSize})`
+            link.style.textDecoration = 'underline'
+            link.style.color = 'hsl(var(--primary))'
+            link.style.marginRight = '8px'
+            link.title = `Télécharger ${fileName}`
+            range.insertNode(link)
+            
+            // Ajouter un espace après le lien
+            const space = document.createTextNode(' ')
+            range.insertNode(space)
+            range.setStartAfter(space)
+            range.collapse(true)
+          }
+        } catch (error) {
+          alert("Erreur lors de l'ajout du fichier")
+        }
+      }
+      // Reset input value
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+    
+    fileInputRef.current.click()
   }
 
   // Fonction pour détecter le formatage actuel
@@ -172,6 +273,18 @@ export function EmailEditor() {
         editor.removeEventListener('mouseup', handleSelectionChange)
         editor.removeEventListener('keyup', handleSelectionChange)
         document.removeEventListener('selectionchange', handleSelectionChange)
+      }
+    }
+  }, [])
+
+  // Nettoyage des inputs cachés
+  useEffect(() => {
+    return () => {
+      if (imageInputRef.current) {
+        document.body.removeChild(imageInputRef.current)
+      }
+      if (fileInputRef.current) {
+        document.body.removeChild(fileInputRef.current)
       }
     }
   }, [])
@@ -680,7 +793,7 @@ export function EmailEditor() {
                         <ImageIcon className="w-4 h-4 mr-2" />
                         Insérer une image
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => alert("Fonctionnalité de pièce jointe à venir")}>
+                      <DropdownMenuItem onClick={insertFile}>
                         <Paperclip className="w-4 h-4 mr-2" />
                         Joindre un fichier
                       </DropdownMenuItem>
