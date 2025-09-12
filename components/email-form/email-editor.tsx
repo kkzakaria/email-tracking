@@ -41,6 +41,8 @@ import {
   ChevronDown,
   Plus,
   Eraser,
+  X,
+  FileIcon,
 } from "lucide-react"
 
 export function EmailEditor() {
@@ -55,6 +57,7 @@ export function EmailEditor() {
   const [currentHighlightColor, setCurrentHighlightColor] = useState("transparent")
   const [currentAlignment, setCurrentAlignment] = useState("left")
   const [currentStyle, setCurrentStyle] = useState("normal")
+  const [attachments, setAttachments] = useState<File[]>([])
   const editorRef = useRef<HTMLDivElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -152,52 +155,40 @@ export function EmailEditor() {
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = '*/*'
+      input.multiple = true // Permettre la sélection multiple
       input.style.display = 'none'
       document.body.appendChild(input)
       fileInputRef.current = input
     }
     
     fileInputRef.current.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
-        // Vérifier la taille du fichier (max 10MB)
-        if (file.size > 10 * 1024 * 1024) {
-          alert("Le fichier est trop volumineux. Taille maximale : 10MB")
-          return
+      const files = (e.target as HTMLInputElement).files
+      if (files) {
+        const validFiles: File[] = []
+        
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          
+          // Vérifier la taille du fichier (max 10MB)
+          if (file.size > 10 * 1024 * 1024) {
+            alert(`Le fichier "${file.name}" est trop volumineux. Taille maximale : 10MB`)
+            continue
+          }
+          
+          // Vérifier si le fichier n'est pas déjà attaché
+          if (attachments.some(att => att.name === file.name && att.size === file.size)) {
+            alert(`Le fichier "${file.name}" est déjà attaché`)
+            continue
+          }
+          
+          validFiles.push(file)
         }
         
-        try {
-          // Créer un lien vers le fichier
-          const fileUrl = URL.createObjectURL(file)
-          const fileName = file.name
-          const fileSize = file.size < 1024 * 1024 
-            ? (file.size / 1024).toFixed(1) + ' KB'
-            : (file.size / 1024 / 1024).toFixed(1) + ' MB'
-          
-          // Insérer un lien avec le nom du fichier
-          const selection = window.getSelection()
-          if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0)
-            const link = document.createElement('a')
-            link.href = fileUrl
-            link.download = fileName
-            link.textContent = `📎 ${fileName} (${fileSize})`
-            link.style.textDecoration = 'underline'
-            link.style.color = 'hsl(var(--primary))'
-            link.style.marginRight = '8px'
-            link.title = `Télécharger ${fileName}`
-            range.insertNode(link)
-            
-            // Ajouter un espace après le lien
-            const space = document.createTextNode(' ')
-            range.insertNode(space)
-            range.setStartAfter(space)
-            range.collapse(true)
-          }
-        } catch (error) {
-          alert("Erreur lors de l'ajout du fichier")
+        if (validFiles.length > 0) {
+          setAttachments(prev => [...prev, ...validFiles])
         }
       }
+      
       // Reset input value
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -205,6 +196,16 @@ export function EmailEditor() {
     }
     
     fileInputRef.current.click()
+  }
+  
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+  
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB'
   }
 
   // Fonction pour détecter le formatage actuel
@@ -303,7 +304,8 @@ export function EmailEditor() {
                   className="bg-blue-700 hover:bg-blue-800 text-white cursor-pointer"
                   onClick={() => {
                     console.log("Sending email with content:", content)
-                    // TODO: Implémenter l'envoi réel de l'email
+                    console.log("Attachments:", attachments)
+                    // TODO: Implémenter l'envoi réel de l'email avec pièces jointes
                   }}
                 >
                   <Send className="w-4 h-4 mr-2" />
@@ -829,6 +831,40 @@ export function EmailEditor() {
                   data-placeholder="Composez votre message..."
                 />
               </div>
+              
+              {/* Attachments */}
+              {attachments.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                    <Paperclip className="w-4 h-4" />
+                    Pièces jointes ({attachments.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {attachments.map((file, index) => (
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="flex items-center justify-between p-2 bg-muted/30 rounded-md border"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileIcon className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAttachment(index)}
+                          className="text-muted-foreground hover:text-destructive h-6 w-6 p-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>
