@@ -58,6 +58,10 @@ export function EmailEditor() {
   const [content, setContent] = useState("")
   const [showCc, setShowCc] = useState(false)
   const [showBcc, setShowBcc] = useState(false)
+  const [currentTextColor, setCurrentTextColor] = useState("#000000")
+  const [currentHighlightColor, setCurrentHighlightColor] = useState("transparent")
+  const [currentAlignment, setCurrentAlignment] = useState("left")
+  const [currentStyle, setCurrentStyle] = useState("normal")
   const editorRef = useRef<HTMLDivElement>(null)
 
   const formatText = (command: string, value?: string) => {
@@ -73,14 +77,21 @@ export function EmailEditor() {
   }
 
   const handleColorChange = (color: string) => {
+    setCurrentTextColor(color)
     formatText("foreColor", color)
   }
 
   const handleBackgroundColor = (color: string) => {
-    formatText("hiliteColor", color)
+    setCurrentHighlightColor(color)
+    if (color === "transparent") {
+      formatText("hiliteColor", "transparent")
+    } else {
+      formatText("hiliteColor", color)
+    }
   }
 
   const handleHeading = (value: string) => {
+    setCurrentStyle(value)
     if (value === "normal") {
       formatText("formatBlock", "<p>")
     } else {
@@ -99,6 +110,26 @@ export function EmailEditor() {
     const url = prompt("Entrez l'URL de l'image:")
     if (url) {
       formatText("insertImage", url)
+    }
+  }
+
+  // Fonction pour détecter le formatage actuel
+  const updateCurrentFormat = () => {
+    if (typeof document.queryCommandSupported === 'function') {
+      try {
+        // Détecter l'alignement
+        if (document.queryCommandState('justifyCenter')) {
+          setCurrentAlignment('center')
+        } else if (document.queryCommandState('justifyRight')) {
+          setCurrentAlignment('right')
+        } else if (document.queryCommandState('justifyFull')) {
+          setCurrentAlignment('justify')
+        } else {
+          setCurrentAlignment('left')
+        }
+      } catch (error) {
+        // Ignore les erreurs de queryCommandState
+      }
     }
   }
 
@@ -132,10 +163,23 @@ export function EmailEditor() {
       }
     }
 
+    const handleSelectionChange = () => {
+      updateCurrentFormat()
+    }
+
     const editor = editorRef.current
     if (editor) {
       editor.addEventListener('keydown', handleKeyDown)
-      return () => editor.removeEventListener('keydown', handleKeyDown)
+      editor.addEventListener('mouseup', handleSelectionChange)
+      editor.addEventListener('keyup', handleSelectionChange)
+      document.addEventListener('selectionchange', handleSelectionChange)
+      
+      return () => {
+        editor.removeEventListener('keydown', handleKeyDown)
+        editor.removeEventListener('mouseup', handleSelectionChange)
+        editor.removeEventListener('keyup', handleSelectionChange)
+        document.removeEventListener('selectionchange', handleSelectionChange)
+      }
     }
   }, [])
 
@@ -243,7 +287,7 @@ export function EmailEditor() {
                   <Separator orientation="vertical" className="h-6" />
                   
                   {/* Headings Dropdown */}
-                  <Select onValueChange={handleHeading} defaultValue="normal">
+                  <Select onValueChange={handleHeading} value={currentStyle}>
                     <SelectTrigger className="w-[140px] h-8 text-sm">
                       <SelectValue placeholder="Style" />
                     </SelectTrigger>
@@ -339,9 +383,15 @@ export function EmailEditor() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
+                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1 relative"
                           >
-                            <Palette className="w-4 h-4" />
+                            <div className="relative">
+                              <Palette className="w-4 h-4" />
+                              <div 
+                                className="absolute -bottom-0.5 left-0 right-0 h-1 rounded-sm border border-border"
+                                style={{ backgroundColor: currentTextColor }}
+                              />
+                            </div>
                             <ChevronDown className="w-3 h-3" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -416,6 +466,7 @@ export function EmailEditor() {
                         <span className="text-xs text-muted-foreground">Personnalisé:</span>
                         <input
                           type="color"
+                          value={currentTextColor}
                           onChange={(e) => handleColorChange(e.target.value)}
                           className="w-8 h-8 rounded cursor-pointer border border-border"
                         />
@@ -431,9 +482,18 @@ export function EmailEditor() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
+                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1 relative"
                           >
-                            <Highlighter className="w-4 h-4" />
+                            <div className="relative">
+                              <Highlighter className="w-4 h-4" />
+                              <div 
+                                className="absolute -bottom-0.5 left-0 right-0 h-1 rounded-sm border border-border"
+                                style={{ 
+                                  backgroundColor: currentHighlightColor === "transparent" ? "#ffffff" : currentHighlightColor,
+                                  opacity: currentHighlightColor === "transparent" ? 0.3 : 1
+                                }}
+                              />
+                            </div>
                             <ChevronDown className="w-3 h-3" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -518,7 +578,10 @@ export function EmailEditor() {
                             size="sm"
                             className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
                           >
-                            <AlignLeft className="w-4 h-4" />
+                            {currentAlignment === "left" && <AlignLeft className="w-4 h-4" />}
+                            {currentAlignment === "center" && <AlignCenter className="w-4 h-4" />}
+                            {currentAlignment === "right" && <AlignRight className="w-4 h-4" />}
+                            {currentAlignment === "justify" && <AlignJustify className="w-4 h-4" />}
                             <ChevronDown className="w-3 h-3" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -526,19 +589,19 @@ export function EmailEditor() {
                       <TooltipContent>Alignement</TooltipContent>
                     </Tooltip>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => formatText("justifyLeft")}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("left"); formatText("justifyLeft"); }}>
                         <AlignLeft className="w-4 h-4 mr-2" />
                         Aligner à gauche
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => formatText("justifyCenter")}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("center"); formatText("justifyCenter"); }}>
                         <AlignCenter className="w-4 h-4 mr-2" />
                         Centrer
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => formatText("justifyRight")}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("right"); formatText("justifyRight"); }}>
                         <AlignRight className="w-4 h-4 mr-2" />
                         Aligner à droite
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => formatText("justifyFull")}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("justify"); formatText("justifyFull"); }}>
                         <AlignJustify className="w-4 h-4 mr-2" />
                         Justifier
                       </DropdownMenuItem>
