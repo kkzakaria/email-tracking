@@ -42,14 +42,14 @@ export default async function DashboardLayout({
   return (
     <TooltipProvider>
       <RealtimeProvider initialEmails={emails}>
-        <div className="min-h-screen bg-background">
+        <div className="h-screen bg-background flex flex-col overflow-hidden">
           {/* Navigation fixe */}
-          <div className="sticky top-0 z-50">
+          <div className="flex-shrink-0 z-50">
             <NavigationBar user={userInfo} />
           </div>
           
           {/* Contenu des pages */}
-          <main className="flex-1">
+          <main className="flex-1 overflow-hidden">
             {children}
           </main>
         </div>

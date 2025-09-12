@@ -4,7 +4,7 @@ import { EmailEditor } from "@/components/email-form/email-editor"
 
 export default function SendPage() {
   return (
-    <main className="min-h-screen bg-background">
+    <main className="h-screen bg-background overflow-hidden">
       <EmailEditor />
     </main>
   )

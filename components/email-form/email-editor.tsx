@@ -43,6 +43,10 @@ import {
   Eraser,
   X,
   FileIcon,
+  FileText,
+  Music,
+  Video,
+  Archive,
 } from "lucide-react"
 
 export function EmailEditor() {
@@ -58,6 +62,7 @@ export function EmailEditor() {
   const [currentAlignment, setCurrentAlignment] = useState("left")
   const [currentStyle, setCurrentStyle] = useState("normal")
   const [attachments, setAttachments] = useState<File[]>([])
+  const [attachmentPreviews, setAttachmentPreviews] = useState<{[key: string]: string}>({})
   const editorRef = useRef<HTMLDivElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -186,6 +191,22 @@ export function EmailEditor() {
         
         if (validFiles.length > 0) {
           setAttachments(prev => [...prev, ...validFiles])
+          
+          // Générer les miniatures pour les images
+          validFiles.forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+              generateThumbnail(file)
+                .then(thumbnailUrl => {
+                  setAttachmentPreviews(prev => ({
+                    ...prev,
+                    [`${file.name}-${file.size}`]: thumbnailUrl
+                  }))
+                })
+                .catch(error => {
+                  console.warn('Failed to generate thumbnail:', error)
+                })
+            }
+          })
         }
       }
       
@@ -199,6 +220,15 @@ export function EmailEditor() {
   }
   
   const removeAttachment = (index: number) => {
+    const fileToRemove = attachments[index]
+    if (fileToRemove) {
+      const previewKey = `${fileToRemove.name}-${fileToRemove.size}`
+      setAttachmentPreviews(prev => {
+        const newPreviews = { ...prev }
+        delete newPreviews[previewKey]
+        return newPreviews
+      })
+    }
     setAttachments(prev => prev.filter((_, i) => i !== index))
   }
   
@@ -206,6 +236,68 @@ export function EmailEditor() {
     if (bytes < 1024) return bytes + ' B'
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
     return (bytes / 1024 / 1024).toFixed(1) + ' MB'
+  }
+
+  // Générer une miniature pour les images
+  const generateThumbnail = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject('Not an image file')
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          // Dimensions de la miniature
+          const maxSize = 60
+          let { width, height } = img
+          
+          // Calculer les nouvelles dimensions en gardant le ratio
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width
+              width = maxSize
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height
+              height = maxSize
+            }
+          }
+          
+          canvas.width = width
+          canvas.height = height
+          
+          // Dessiner l'image redimensionnée
+          ctx?.drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL('image/jpeg', 0.8))
+        }
+        img.onerror = () => reject('Failed to load image')
+        img.src = e.target?.result as string
+      }
+      reader.onerror = () => reject('Failed to read file')
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Obtenir l'icône selon le type de fichier
+  const getFileIcon = (file: File) => {
+    const type = file.type.toLowerCase()
+    const extension = file.name.split('.').pop()?.toLowerCase()
+
+    if (type.startsWith('image/')) return <ImageIcon className="w-6 h-6 text-blue-500" />
+    if (type.startsWith('video/')) return <Video className="w-6 h-6 text-red-500" />
+    if (type.startsWith('audio/')) return <Music className="w-6 h-6 text-green-500" />
+    if (type.includes('pdf') || extension === 'pdf') return <FileText className="w-6 h-6 text-red-600" />
+    if (type.includes('text') || ['txt', 'md', 'rtf'].includes(extension || '')) return <FileText className="w-6 h-6 text-gray-600" />
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension || '')) return <Archive className="w-6 h-6 text-orange-500" />
+    
+    return <FileIcon className="w-6 h-6 text-gray-500" />
   }
 
   // Fonction pour détecter le formatage actuel
@@ -291,13 +383,13 @@ export function EmailEditor() {
   }, [])
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="w-full">
+    <div className="w-full h-full flex flex-col p-6">
+      <div className="w-full flex flex-col h-full max-w-6xl mx-auto">
         {/* Main Editor */}
-        <div>
-          <Card className="p-6">
-            <div className="space-y-4">
-              {/* Header */}
+        <div className="flex flex-col h-full">
+          <Card className="flex flex-col h-full">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 p-6 pb-4">
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-foreground">{"Composer un email"}</h1>
                 <Button 
@@ -312,10 +404,13 @@ export function EmailEditor() {
                   Envoyer
                 </Button>
               </div>
+              <Separator className="mt-4" />
+            </div>
 
-              <Separator />
-
-              {/* Recipient Fields */}
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
+              <div className="space-y-4">
+                {/* Recipient Fields */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Mail className="w-4 h-4 text-muted-foreground" />
@@ -819,19 +914,6 @@ export function EmailEditor() {
                 </div>
               </Card>
 
-              {/* Content Editor */}
-              <div className="min-h-[400px]">
-                <div
-                  ref={editorRef}
-                  contentEditable
-                  className="w-full min-h-[400px] p-4 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground leading-relaxed"
-                  style={{ whiteSpace: "pre-wrap" }}
-                  onInput={(e) => setContent(e.currentTarget.innerHTML || "")}
-                  suppressContentEditableWarning={true}
-                  data-placeholder="Composez votre message..."
-                />
-              </div>
-              
               {/* Attachments */}
               {attachments.length > 0 && (
                 <div className="mt-4">
@@ -839,32 +921,70 @@ export function EmailEditor() {
                     <Paperclip className="w-4 h-4" />
                     Pièces jointes ({attachments.length})
                   </h3>
-                  <div className="space-y-2">
-                    {attachments.map((file, index) => (
-                      <div
-                        key={`${file.name}-${index}`}
-                        className="flex items-center justify-between p-2 bg-muted/30 rounded-md border"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FileIcon className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{file.name}</p>
-                            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeAttachment(index)}
-                          className="text-muted-foreground hover:text-destructive h-6 w-6 p-0"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {attachments.map((file, index) => {
+                      const previewKey = `${file.name}-${file.size}`
+                      const hasPreview = attachmentPreviews[previewKey]
+                      
+                      return (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border hover:bg-muted/50 transition-colors"
                         >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
+                          {/* Miniature ou icône */}
+                          <div className="flex-shrink-0">
+                            {hasPreview ? (
+                              <img
+                                src={attachmentPreviews[previewKey]}
+                                alt={file.name}
+                                className="w-12 h-12 object-cover rounded border border-border"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 flex items-center justify-center bg-background rounded border border-border">
+                                {getFileIcon(file)}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Info fichier */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate" title={file.name}>
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(file.size)}
+                            </p>
+                          </div>
+                          
+                          {/* Bouton supprimer */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAttachment(index)}
+                            className="text-muted-foreground hover:text-destructive h-8 w-8 p-0 flex-shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
+
+                {/* Content Editor */}
+                <div className="min-h-[400px]">
+                  <div
+                    ref={editorRef}
+                    contentEditable
+                    className="w-full min-h-[400px] p-4 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground leading-relaxed"
+                    style={{ whiteSpace: "pre-wrap" }}
+                    onInput={(e) => setContent(e.currentTarget.innerHTML || "")}
+                    suppressContentEditableWarning={true}
+                    data-placeholder="Composez votre message..."
+                  />
+                </div>
+              </div>
             </div>
           </Card>
         </div>
