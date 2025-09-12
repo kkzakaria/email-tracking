@@ -18,81 +18,170 @@ export default async function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Tabs for different settings categories */}
         <Tabs defaultValue="system" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="users" disabled className="flex items-center gap-2">
+          <div className="sticky top-12 z-40 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900 pt-2 pb-2">
+            <TabsList className="grid w-full grid-cols-4 h-10 p-1 bg-white dark:bg-gray-800 shadow-sm">
+            <TabsTrigger value="users" className="flex items-center justify-center gap-2 data-[state=active]:bg-gray-900 dark:data-[state=active]:bg-white data-[state=active]:text-white dark:data-[state=active]:text-gray-900 data-[state=active]:shadow-sm">
               <User className="w-4 h-4" />
-              Utilisateurs
+              <span className="hidden sm:inline">Utilisateurs</span>
             </TabsTrigger>
-            <TabsTrigger value="reminders" disabled className="flex items-center gap-2">
+            <TabsTrigger value="reminders" className="flex items-center justify-center gap-2 data-[state=active]:bg-gray-900 dark:data-[state=active]:bg-white data-[state=active]:text-white dark:data-[state=active]:text-gray-900 data-[state=active]:shadow-sm">
               <RefreshCw className="w-4 h-4" />
-              Relances
+              <span className="hidden sm:inline">Relances</span>
             </TabsTrigger>
-            <TabsTrigger value="templates" disabled className="flex items-center gap-2">
+            <TabsTrigger value="templates" className="flex items-center justify-center gap-2 data-[state=active]:bg-gray-900 dark:data-[state=active]:bg-white data-[state=active]:text-white dark:data-[state=active]:text-gray-900 data-[state=active]:shadow-sm">
               <FileText className="w-4 h-4" />
-              Templates
+              <span className="hidden sm:inline">Templates</span>
             </TabsTrigger>
-            <TabsTrigger value="system" className="flex items-center gap-2">
+            <TabsTrigger value="system" className="flex items-center justify-center gap-2 data-[state=active]:bg-gray-900 dark:data-[state=active]:bg-white data-[state=active]:text-white dark:data-[state=active]:text-gray-900 data-[state=active]:shadow-sm">
               <Settings className="w-4 h-4" />
-              Système
+              <span className="hidden sm:inline">Système</span>
             </TabsTrigger>
-          </TabsList>
+            </TabsList>
+          </div>
 
           {/* Users Tab Content */}
-          <TabsContent value="users">
+          <TabsContent value="users" className="px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Gestion des utilisateurs</CardTitle>
                 <CardDescription>
-                  Cette section sera bientôt disponible
+                  Gérez les utilisateurs et leurs permissions
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Gérez les utilisateurs, leurs permissions et leurs accès.
-                </p>
+              <CardContent className="space-y-4">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <div className="flex items-center gap-3 mb-4">
+                    <User className="w-8 h-8 text-gray-400" />
+                    <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Fonctionnalités à venir</h3>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Invitation de nouveaux utilisateurs par email
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Gestion des rôles et permissions (Admin, Utilisateur, Lecteur)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Historique des connexions et activités
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Désactivation et suppression de comptes
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Authentification à deux facteurs (2FA)
+                    </li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Reminders Tab Content */}
-          <TabsContent value="reminders">
+          <TabsContent value="reminders" className="px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Configuration des relances</CardTitle>
                 <CardDescription>
-                  Cette section sera bientôt disponible
+                  Automatisez vos relances d'emails
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Configurez les règles de relance automatique et les délais.
-                </p>
+              <CardContent className="space-y-4">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <div className="flex items-center gap-3 mb-4">
+                    <RefreshCw className="w-8 h-8 text-gray-400" />
+                    <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Fonctionnalités à venir</h3>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Définir les délais de relance (1 jour, 3 jours, 1 semaine)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Nombre maximum de relances par email
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Horaires d'envoi préférés (jours ouvrables, heures de bureau)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Personnalisation du message de relance
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Exclusion de certains domaines ou contacts
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Statistiques des relances (taux de réponse, efficacité)
+                    </li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Templates Tab Content */}
-          <TabsContent value="templates">
+          <TabsContent value="templates" className="px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Templates d'emails</CardTitle>
                 <CardDescription>
-                  Cette section sera bientôt disponible
+                  Créez et gérez vos modèles d'emails
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Créez et gérez vos modèles d'emails pour les relances.
-                </p>
+              <CardContent className="space-y-4">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <div className="flex items-center gap-3 mb-4">
+                    <FileText className="w-8 h-8 text-gray-400" />
+                    <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Fonctionnalités à venir</h3>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Bibliothèque de templates prédéfinis
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Éditeur de templates avec aperçu en temps réel
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Variables dynamiques (nom, entreprise, date, etc.)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Templates pour différents contextes (relance, suivi, remerciement)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Import/Export de templates
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Versioning et historique des modifications
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                      Templates multilingues
+                    </li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* System Tab Content */}
-          <TabsContent value="system" className="space-y-6">
+          <TabsContent value="system" className="px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
             {/* Microsoft OAuth Connection */}
             <MicrosoftOAuth />
             
