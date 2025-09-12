@@ -8,13 +8,6 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -287,56 +280,59 @@ export function EmailEditor() {
                   <Separator orientation="vertical" className="h-6" />
                   
                   {/* Headings Dropdown */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <Select onValueChange={handleHeading} value={currentStyle}>
-                          <SelectTrigger className="w-[50px] h-8 text-sm">
-                            <SelectValue>
-                              <div className="flex items-center justify-center">
-                                {currentStyle === "normal" && <Type className="w-4 h-4" />}
-                                {currentStyle === "<h1>" && <Heading1 className="w-4 h-4" />}
-                                {currentStyle === "<h2>" && <Heading2 className="w-4 h-4" />}
-                                {currentStyle === "<h3>" && <Heading3 className="w-4 h-4" />}
-                              </div>
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="normal">
-                              <div className="flex items-center gap-2">
-                                <Type className="w-4 h-4" />
-                                <span>Normal</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="<h1>">
-                              <div className="flex items-center gap-2">
-                                <Heading1 className="w-4 h-4" />
-                                <span className="font-bold text-lg">Titre 1</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="<h2>">
-                              <div className="flex items-center gap-2">
-                                <Heading2 className="w-4 h-4" />
-                                <span className="font-semibold text-base">Titre 2</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="<h3>">
-                              <div className="flex items-center gap-2">
-                                <Heading3 className="w-4 h-4" />
-                                <span className="font-medium text-sm">Titre 3</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {currentStyle === "normal" && "Paragraphe normal"}
-                      {currentStyle === "<h1>" && "Titre 1"}
-                      {currentStyle === "<h2>" && "Titre 2"}
-                      {currentStyle === "<h3>" && "Titre 3"}
-                    </TooltipContent>
-                  </Tooltip>
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-[50px] h-8 text-foreground hover:bg-accent hover:text-accent-foreground border border-border cursor-pointer gap-1 px-2"
+                          >
+                            <div className="flex items-center justify-center">
+                              {currentStyle === "normal" && <Type className="w-4 h-4" />}
+                              {currentStyle === "<h1>" && <Heading1 className="w-4 h-4" />}
+                              {currentStyle === "<h2>" && <Heading2 className="w-4 h-4" />}
+                              {currentStyle === "<h3>" && <Heading3 className="w-4 h-4" />}
+                            </div>
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {currentStyle === "normal" && "Paragraphe normal"}
+                        {currentStyle === "<h1>" && "Titre 1"}
+                        {currentStyle === "<h2>" && "Titre 2"}
+                        {currentStyle === "<h3>" && "Titre 3"}
+                      </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleHeading("normal")}>
+                        <div className="flex items-center gap-2">
+                          <Type className="w-4 h-4" />
+                          <span>Normal</span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleHeading("<h1>")}>
+                        <div className="flex items-center gap-2">
+                          <Heading1 className="w-4 h-4" />
+                          <span className="font-bold text-lg">Titre 1</span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleHeading("<h2>")}>
+                        <div className="flex items-center gap-2">
+                          <Heading2 className="w-4 h-4" />
+                          <span className="font-semibold text-base">Titre 2</span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleHeading("<h3>")}>
+                        <div className="flex items-center gap-2">
+                          <Heading3 className="w-4 h-4" />
+                          <span className="font-medium text-sm">Titre 3</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Separator orientation="vertical" className="h-6" />
                   
                   {/* Text Formatting */}
