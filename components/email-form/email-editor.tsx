@@ -81,15 +81,78 @@ export function EmailEditor() {
 
   const handleColorChange = (color: string) => {
     setCurrentTextColor(color)
-    formatText("foreColor", color)
+    
+    const selection = window.getSelection()
+    if (selection && !selection.isCollapsed) {
+      // Si du texte est sélectionné, appliquer directement
+      formatText("foreColor", color)
+    } else {
+      // Si pas de sélection, créer un span invisible avec la couleur
+      // pour que le prochain texte tapé hérite de cette couleur
+      const span = document.createElement('span')
+      span.style.color = color
+      span.appendChild(document.createTextNode('\u200B')) // Caractère zero-width
+      
+      if (editorRef.current) {
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          range.insertNode(span)
+          range.setStartAfter(span)
+          range.setEndAfter(span)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        } else {
+          // Si pas de sélection du tout, ajouter à la fin
+          editorRef.current.appendChild(span)
+          const newRange = document.createRange()
+          newRange.setStartAfter(span)
+          newRange.setEndAfter(span)
+          selection?.removeAllRanges()
+          selection?.addRange(newRange)
+        }
+      }
+    }
   }
 
   const handleBackgroundColor = (color: string) => {
     setCurrentHighlightColor(color)
-    if (color === "transparent") {
-      formatText("hiliteColor", "transparent")
+    
+    const selection = window.getSelection()
+    if (selection && !selection.isCollapsed) {
+      // Si du texte est sélectionné, appliquer directement
+      if (color === "transparent") {
+        formatText("hiliteColor", "transparent")
+      } else {
+        formatText("hiliteColor", color)
+      }
     } else {
-      formatText("hiliteColor", color)
+      // Si pas de sélection, créer un span invisible avec la couleur de fond
+      const span = document.createElement('span')
+      if (color === "transparent") {
+        span.style.backgroundColor = ""
+      } else {
+        span.style.backgroundColor = color
+      }
+      span.appendChild(document.createTextNode('\u200B')) // Caractère zero-width
+      
+      if (editorRef.current) {
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          range.insertNode(span)
+          range.setStartAfter(span)
+          range.setEndAfter(span)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        } else {
+          // Si pas de sélection du tout, ajouter à la fin
+          editorRef.current.appendChild(span)
+          const newRange = document.createRange()
+          newRange.setStartAfter(span)
+          newRange.setEndAfter(span)
+          selection?.removeAllRanges()
+          selection?.addRange(newRange)
+        }
+      }
     }
   }
 
@@ -323,6 +386,27 @@ export function EmailEditor() {
   // Gestion des raccourcis clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Gestion de la tabulation
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        
+        // Insérer une tabulation (utilisant des espaces pour plus de compatibilité)
+        const selection = window.getSelection()
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          const tabNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0') // 4 espaces insécables
+          range.deleteContents()
+          range.insertNode(tabNode)
+          
+          // Positionner le curseur après la tabulation
+          range.setStartAfter(tabNode)
+          range.setEndAfter(tabNode)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        }
+        return
+      }
+      
       if (e.ctrlKey || e.metaKey) {
         switch(e.key) {
           case 'b':
