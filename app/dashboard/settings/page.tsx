@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SubscriptionManager } from "@/components/dashboard/subscription-manager";
 import MicrosoftOAuth from "@/components/dashboard/microsoft-oauth";
 import { EmailHistorySync } from "@/components/dashboard/email-history-sync";
+import UsersTable from "@/components/dashboard/users-table";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -44,44 +45,7 @@ export default async function SettingsPage() {
 
           {/* Users Tab Content */}
           <TabsContent value="users" className="px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestion des utilisateurs</CardTitle>
-                <CardDescription>
-                  Gérez les utilisateurs et leurs permissions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
-                  <div className="flex items-center gap-3 mb-4">
-                    <User className="w-8 h-8 text-gray-400" />
-                    <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Fonctionnalités à venir</h3>
-                  </div>
-                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Invitation de nouveaux utilisateurs par email
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Gestion des rôles et permissions (Admin, Utilisateur, Lecteur)
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Historique des connexions et activités
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Désactivation et suppression de comptes
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Authentification à deux facteurs (2FA)
-                    </li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+            <UsersTable />
           </TabsContent>
 
           {/* Reminders Tab Content */}
