@@ -239,36 +239,37 @@ const columns: ColumnDef<UserItem>[] = [
     },
     size: 140,
   },
-  {
-    header: "Emails envoyés",
-    accessorKey: "emailsSent",
-    cell: ({ row }) => (
-      <span className="font-mono text-sm">{row.getValue("emailsSent")}</span>
-    ),
-    size: 120,
-  },
-  {
-    header: "Taux de réponse",
-    accessorKey: "responseRate",
-    cell: ({ row }) => {
-      const rate = row.getValue("responseRate") as number
-      return (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div
-              className={cn(
-                "h-2 rounded-full",
-                rate >= 70 ? "bg-green-500" : rate >= 40 ? "bg-yellow-500" : "bg-red-500"
-              )}
-              style={{ width: `${rate}%` }}
-            />
-          </div>
-          <span className="text-sm font-medium">{rate}%</span>
-        </div>
-      )
-    },
-    size: 140,
-  },
+  // TODO: À réactiver plus tard
+  // {
+  //   header: "Emails envoyés",
+  //   accessorKey: "emailsSent",
+  //   cell: ({ row }) => (
+  //     <span className="font-mono text-sm">{row.getValue("emailsSent")}</span>
+  //   ),
+  //   size: 120,
+  // },
+  // {
+  //   header: "Taux de réponse",
+  //   accessorKey: "responseRate",
+  //   cell: ({ row }) => {
+  //     const rate = row.getValue("responseRate") as number
+  //     return (
+  //       <div className="flex items-center gap-2">
+  //         <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+  //           <div
+  //             className={cn(
+  //               "h-2 rounded-full",
+  //               rate >= 70 ? "bg-green-500" : rate >= 40 ? "bg-yellow-500" : "bg-red-500"
+  //             )}
+  //             style={{ width: `${rate}%` }}
+  //           />
+  //         </div>
+  //         <span className="text-sm font-medium">{rate}%</span>
+  //       </div>
+  //     )
+  //   },
+  //   size: 140,
+  // },
   {
     id: "actions",
     header: () => <span className="sr-only">Actions</span>,
@@ -618,8 +619,8 @@ export default function UsersTable() {
                     role: "Rôle",
                     status: "Statut",
                     lastLogin: "Dernière connexion",
-                    emailsSent: "Emails envoyés",
-                    responseRate: "Taux de réponse",
+                    // emailsSent: "Emails envoyés", // TODO: À réactiver plus tard
+                    // responseRate: "Taux de réponse", // TODO: À réactiver plus tard
                   }
                   return (
                     <DropdownMenuCheckboxItem
