@@ -204,6 +204,7 @@ export function RemindersSettings() {
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          className="cursor-pointer"
                         />
                       </FormControl>
                     </FormItem>
@@ -225,7 +226,7 @@ export function RemindersSettings() {
                           value={field.value.toString()}
                           onValueChange={(value) => field.onChange(parseInt(value))}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="cursor-pointer">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -261,6 +262,7 @@ export function RemindersSettings() {
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          className="cursor-pointer"
                         />
                       </FormControl>
                     </FormItem>
@@ -285,7 +287,7 @@ export function RemindersSettings() {
                               value={field.value.toString()}
                               onValueChange={(value) => field.onChange(parseInt(value))}
                             >
-                              <SelectTrigger>
+                              <SelectTrigger className="cursor-pointer">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -312,7 +314,7 @@ export function RemindersSettings() {
                               value={field.value.toString()}
                               onValueChange={(value) => field.onChange(parseInt(value))}
                             >
-                              <SelectTrigger>
+                              <SelectTrigger className="cursor-pointer">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -347,7 +349,7 @@ export function RemindersSettings() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full cursor-pointer">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Sauvegarder la configuration
               </Button>
@@ -377,7 +379,7 @@ export function RemindersSettings() {
                 onChange={(e) => setNewDomain(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addExcludedDomain()}
               />
-              <Button onClick={addExcludedDomain} size="sm">
+              <Button onClick={addExcludedDomain} size="sm" className="cursor-pointer">
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -390,6 +392,7 @@ export function RemindersSettings() {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeExcludedDomain(domain)}
+                      className="cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -419,7 +422,7 @@ export function RemindersSettings() {
                 onChange={(e) => setNewEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addExcludedEmail()}
               />
-              <Button onClick={addExcludedEmail} size="sm">
+              <Button onClick={addExcludedEmail} size="sm" className="cursor-pointer">
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -432,6 +435,7 @@ export function RemindersSettings() {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeExcludedEmail(email)}
+                      className="cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -458,7 +462,7 @@ export function RemindersSettings() {
           <Tabs value={activeTemplateTab} onValueChange={setActiveTemplateTab}>
             <TabsList className={`grid w-full ${getGridColsClass(maxReminders)}`}>
               {Array.from({ length: maxReminders }, (_, i) => i + 1).map((index) => (
-                <TabsTrigger key={index} value={index.toString()}>
+                <TabsTrigger key={index} value={index.toString()} className="cursor-pointer">
                   {generateTemplateLabel(index, maxReminders)}
                 </TabsTrigger>
               ))}
