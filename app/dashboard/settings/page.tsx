@@ -1,7 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, User, RefreshCw, FileText, Settings } from "lucide-react";
+import { User, RefreshCw, FileText, Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SubscriptionManager } from "@/components/dashboard/subscription-manager";
@@ -20,24 +19,6 @@ export default async function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation */}
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour au dashboard
-          </Link>
-          
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Paramètres</h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">
-              Configurez votre application de suivi d'emails
-            </p>
-          </div>
-        </div>
-
         {/* Tabs for different settings categories */}
         <Tabs defaultValue="system" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
