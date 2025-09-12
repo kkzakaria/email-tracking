@@ -1,0 +1,71 @@
+/* Custom Editor Styles */
+
+/* Placeholder for contentEditable */
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  display: block;
+}
+
+/* Editor styles for better formatting */
+[contenteditable] h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.67em 0;
+}
+
+[contenteditable] h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.83em 0;
+}
+
+[contenteditable] h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin: 1em 0;
+}
+
+[contenteditable] p {
+  margin: 1em 0;
+}
+
+[contenteditable] ul,
+[contenteditable] ol {
+  margin: 1em 0;
+  padding-left: 2em;
+}
+
+[contenteditable] li {
+  margin: 0.5em 0;
+}
+
+[contenteditable] a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+[contenteditable] img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em 0;
+}
+
+/* Color picker button styling */
+input[type="color"] {
+  -webkit-appearance: none;
+  border: none;
+  width: 32px;
+  height: 32px;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
