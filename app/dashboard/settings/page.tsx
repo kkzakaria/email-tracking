@@ -7,6 +7,7 @@ import { SubscriptionManager } from "@/components/dashboard/subscription-manager
 import MicrosoftOAuth from "@/components/dashboard/microsoft-oauth";
 import { EmailHistorySync } from "@/components/dashboard/email-history-sync";
 import UsersTable from "@/components/dashboard/users-table";
+import { RemindersSettings } from "@/components/dashboard/reminders-settings";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -49,49 +50,8 @@ export default async function SettingsPage() {
           </TabsContent>
 
           {/* Reminders Tab Content */}
-          <TabsContent value="reminders" className="px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuration des relances</CardTitle>
-                <CardDescription>
-                  Automatisez vos relances d'emails
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
-                  <div className="flex items-center gap-3 mb-4">
-                    <RefreshCw className="w-8 h-8 text-gray-400" />
-                    <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Fonctionnalités à venir</h3>
-                  </div>
-                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Définir les délais de relance (1 jour, 3 jours, 1 semaine)
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Nombre maximum de relances par email
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Horaires d'envoi préférés (jours ouvrables, heures de bureau)
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Personnalisation du message de relance
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Exclusion de certains domaines ou contacts
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                      Statistiques des relances (taux de réponse, efficacité)
-                    </li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="reminders" className="px-4 sm:px-6 lg:px-8 pb-8">
+            <RemindersSettings />
           </TabsContent>
 
           {/* Templates Tab Content */}
