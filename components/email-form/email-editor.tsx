@@ -601,25 +601,25 @@ export function EmailEditor() {
                       </TooltipContent>
                     </Tooltip>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleHeading("normal")}>
+                      <DropdownMenuItem onClick={() => handleHeading("normal")} className="cursor-pointer">
                         <div className="flex items-center gap-2">
                           <Type className="w-4 h-4" />
                           <span>Normal</span>
                         </div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleHeading("<h1>")}>
+                      <DropdownMenuItem onClick={() => handleHeading("<h1>")} className="cursor-pointer">
                         <div className="flex items-center gap-2">
                           <Heading1 className="w-4 h-4" />
                           <span className="font-bold text-lg">Titre 1</span>
                         </div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleHeading("<h2>")}>
+                      <DropdownMenuItem onClick={() => handleHeading("<h2>")} className="cursor-pointer">
                         <div className="flex items-center gap-2">
                           <Heading2 className="w-4 h-4" />
                           <span className="font-semibold text-base">Titre 2</span>
                         </div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleHeading("<h3>")}>
+                      <DropdownMenuItem onClick={() => handleHeading("<h3>")} className="cursor-pointer">
                         <div className="flex items-center gap-2">
                           <Heading3 className="w-4 h-4" />
                           <span className="font-medium text-sm">Titre 3</span>
@@ -711,61 +711,61 @@ export function EmailEditor() {
                       <div className="grid grid-cols-5 gap-1">
                         <button
                           onClick={() => handleColorChange("#000000")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#000000" }}
                           title="Noir"
                         />
                         <button
                           onClick={() => handleColorChange("#EF4444")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#EF4444" }}
                           title="Rouge"
                         />
                         <button
                           onClick={() => handleColorChange("#F59E0B")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#F59E0B" }}
                           title="Orange"
                         />
                         <button
                           onClick={() => handleColorChange("#10B981")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#10B981" }}
                           title="Vert"
                         />
                         <button
                           onClick={() => handleColorChange("#3B82F6")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#3B82F6" }}
                           title="Bleu"
                         />
                         <button
                           onClick={() => handleColorChange("#8B5CF6")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#8B5CF6" }}
                           title="Violet"
                         />
                         <button
                           onClick={() => handleColorChange("#EC4899")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#EC4899" }}
                           title="Rose"
                         />
                         <button
                           onClick={() => handleColorChange("#6B7280")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#6B7280" }}
                           title="Gris"
                         />
                         <button
                           onClick={() => handleColorChange("#A78BFA")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#A78BFA" }}
                           title="Lavande"
                         />
                         <button
                           onClick={() => handleColorChange("#059669")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#059669" }}
                           title="Vert foncé"
                         />
@@ -813,62 +813,62 @@ export function EmailEditor() {
                       <div className="grid grid-cols-5 gap-1">
                         <button
                           onClick={() => handleBackgroundColor("transparent")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform bg-white relative"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform bg-white relative cursor-pointer"
                           title="Aucun"
                         >
                           <span className="absolute inset-0 flex items-center justify-center text-xs">✕</span>
                         </button>
                         <button
                           onClick={() => handleBackgroundColor("#FEF3C7")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#FEF3C7" }}
                           title="Jaune"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#DBEAFE")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#DBEAFE" }}
                           title="Bleu clair"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#D1FAE5")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#D1FAE5" }}
                           title="Vert clair"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#FCE7F3")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#FCE7F3" }}
                           title="Rose clair"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#FED7AA")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#FED7AA" }}
                           title="Orange clair"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#E9D5FF")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#E9D5FF" }}
                           title="Lavande clair"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#FEE2E2")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#FEE2E2" }}
                           title="Rouge clair"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#F3F4F6")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#F3F4F6" }}
                           title="Gris clair"
                         />
                         <button
                           onClick={() => handleBackgroundColor("#CFFAFE")}
-                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
                           style={{ backgroundColor: "#CFFAFE" }}
                           title="Cyan clair"
                         />
@@ -898,19 +898,19 @@ export function EmailEditor() {
                       <TooltipContent>Alignement</TooltipContent>
                     </Tooltip>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => { setCurrentAlignment("left"); formatText("justifyLeft"); }}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("left"); formatText("justifyLeft"); }} className="cursor-pointer">
                         <AlignLeft className="w-4 h-4 mr-2" />
                         Aligner à gauche
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setCurrentAlignment("center"); formatText("justifyCenter"); }}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("center"); formatText("justifyCenter"); }} className="cursor-pointer">
                         <AlignCenter className="w-4 h-4 mr-2" />
                         Centrer
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setCurrentAlignment("right"); formatText("justifyRight"); }}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("right"); formatText("justifyRight"); }} className="cursor-pointer">
                         <AlignRight className="w-4 h-4 mr-2" />
                         Aligner à droite
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setCurrentAlignment("justify"); formatText("justifyFull"); }}>
+                      <DropdownMenuItem onClick={() => { setCurrentAlignment("justify"); formatText("justifyFull"); }} className="cursor-pointer">
                         <AlignJustify className="w-4 h-4 mr-2" />
                         Justifier
                       </DropdownMenuItem>
@@ -936,11 +936,11 @@ export function EmailEditor() {
                       <TooltipContent>Listes</TooltipContent>
                     </Tooltip>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => formatText("insertUnorderedList")}>
+                      <DropdownMenuItem onClick={() => formatText("insertUnorderedList")} className="cursor-pointer">
                         <List className="w-4 h-4 mr-2" />
                         Liste à puces
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => formatText("insertOrderedList")}>
+                      <DropdownMenuItem onClick={() => formatText("insertOrderedList")} className="cursor-pointer">
                         <ListOrdered className="w-4 h-4 mr-2" />
                         Liste numérotée
                       </DropdownMenuItem>
@@ -966,15 +966,15 @@ export function EmailEditor() {
                       <TooltipContent>Insérer</TooltipContent>
                     </Tooltip>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={insertLink}>
+                      <DropdownMenuItem onClick={insertLink} className="cursor-pointer">
                         <Link className="w-4 h-4 mr-2" />
                         Insérer un lien
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={insertImage}>
+                      <DropdownMenuItem onClick={insertImage} className="cursor-pointer">
                         <ImageIcon className="w-4 h-4 mr-2" />
                         Insérer une image
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={insertFile}>
+                      <DropdownMenuItem onClick={insertFile} className="cursor-pointer">
                         <Paperclip className="w-4 h-4 mr-2" />
                         Joindre un fichier
                       </DropdownMenuItem>
