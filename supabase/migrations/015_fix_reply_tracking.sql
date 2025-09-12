@@ -1,7 +1,7 @@
 -- ====================================================================================================
 -- EMAIL TRACKING SYSTEM - FIX REPLY TRACKING
 -- ====================================================================================================
--- Migration 010: Correction du tracking des réponses
+-- Migration 015: Correction du tracking des réponses
 -- Created: 2025-01-10  
 -- Description: Empêche les réponses d'être trackées comme nouveaux emails
 -- ====================================================================================================
