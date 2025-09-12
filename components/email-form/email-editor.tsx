@@ -303,23 +303,27 @@ export function EmailEditor() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="normal">
-                              <div className="flex items-center justify-center">
+                              <div className="flex items-center gap-2">
                                 <Type className="w-4 h-4" />
+                                <span>Normal</span>
                               </div>
                             </SelectItem>
                             <SelectItem value="<h1>">
-                              <div className="flex items-center justify-center">
+                              <div className="flex items-center gap-2">
                                 <Heading1 className="w-4 h-4" />
+                                <span className="font-bold text-lg">Titre 1</span>
                               </div>
                             </SelectItem>
                             <SelectItem value="<h2>">
-                              <div className="flex items-center justify-center">
+                              <div className="flex items-center gap-2">
                                 <Heading2 className="w-4 h-4" />
+                                <span className="font-semibold text-base">Titre 2</span>
                               </div>
                             </SelectItem>
                             <SelectItem value="<h3>">
-                              <div className="flex items-center justify-center">
+                              <div className="flex items-center gap-2">
                                 <Heading3 className="w-4 h-4" />
+                                <span className="font-medium text-sm">Titre 3</span>
                               </div>
                             </SelectItem>
                           </SelectContent>
