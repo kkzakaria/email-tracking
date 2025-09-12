@@ -8,6 +8,19 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Bold,
   Italic,
   Underline,
@@ -32,6 +45,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  ChevronDown,
 } from "lucide-react"
 
 export function EmailEditor() {
@@ -64,8 +78,12 @@ export function EmailEditor() {
     formatText("hiliteColor", color)
   }
 
-  const handleHeading = (level: string) => {
-    formatText("formatBlock", level)
+  const handleHeading = (value: string) => {
+    if (value === "normal") {
+      formatText("formatBlock", "<p>")
+    } else {
+      formatText("formatBlock", value)
+    }
   }
 
   const insertLink = () => {
@@ -222,59 +240,38 @@ export function EmailEditor() {
                   </Tooltip>
                   <Separator orientation="vertical" className="h-6" />
                   
-                  {/* Headings */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleHeading("<h1>")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <Heading1 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Titre 1</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleHeading("<h2>")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <Heading2 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Titre 2</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleHeading("<h3>")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <Heading3 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Titre 3</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleHeading("<p>")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <Type className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Paragraphe</TooltipContent>
-                  </Tooltip>
+                  {/* Headings Dropdown */}
+                  <Select onValueChange={handleHeading} defaultValue="normal">
+                    <SelectTrigger className="w-[140px] h-8 text-sm">
+                      <SelectValue placeholder="Style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">
+                        <div className="flex items-center gap-2">
+                          <Type className="w-4 h-4" />
+                          <span>Normal</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="<h1>">
+                        <div className="flex items-center gap-2">
+                          <Heading1 className="w-4 h-4" />
+                          <span className="font-bold text-lg">Titre 1</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="<h2>">
+                        <div className="flex items-center gap-2">
+                          <Heading2 className="w-4 h-4" />
+                          <span className="font-semibold text-base">Titre 2</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="<h3>">
+                        <div className="flex items-center gap-2">
+                          <Heading3 className="w-4 h-4" />
+                          <span className="font-medium text-sm">Titre 3</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Separator orientation="vertical" className="h-6" />
                   
                   {/* Text Formatting */}
@@ -332,101 +329,219 @@ export function EmailEditor() {
                   </Tooltip>
                   <Separator orientation="vertical" className="h-6" />
                   
-                  {/* Colors */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="relative">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                        >
-                          <Palette className="w-4 h-4" />
-                        </Button>
+                  {/* Text Color Dropdown */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
+                          >
+                            <Palette className="w-4 h-4" />
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Couleur du texte</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent className="p-2">
+                      <div className="grid grid-cols-5 gap-1">
+                        <button
+                          onClick={() => handleColorChange("#000000")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#000000" }}
+                          title="Noir"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#EF4444")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#EF4444" }}
+                          title="Rouge"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#F59E0B")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#F59E0B" }}
+                          title="Orange"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#10B981")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#10B981" }}
+                          title="Vert"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#3B82F6")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#3B82F6" }}
+                          title="Bleu"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#8B5CF6")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#8B5CF6" }}
+                          title="Violet"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#EC4899")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#EC4899" }}
+                          title="Rose"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#6B7280")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#6B7280" }}
+                          title="Gris"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#A78BFA")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#A78BFA" }}
+                          title="Lavande"
+                        />
+                        <button
+                          onClick={() => handleColorChange("#059669")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#059669" }}
+                          title="Vert foncé"
+                        />
+                      </div>
+                      <Separator className="my-2" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Personnalisé:</span>
                         <input
                           type="color"
                           onChange={(e) => handleColorChange(e.target.value)}
-                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          className="w-8 h-8 rounded cursor-pointer border border-border"
                         />
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Couleur du texte</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="relative">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Highlight Color Dropdown */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
+                          >
+                            <Highlighter className="w-4 h-4" />
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Surligner</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent className="p-2">
+                      <div className="grid grid-cols-5 gap-1">
+                        <button
+                          onClick={() => handleBackgroundColor("transparent")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform bg-white relative"
+                          title="Aucun"
                         >
-                          <Highlighter className="w-4 h-4" />
-                        </Button>
-                        <input
-                          type="color"
-                          onChange={(e) => handleBackgroundColor(e.target.value)}
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          defaultValue="#FFFF00"
+                          <span className="absolute inset-0 flex items-center justify-center text-xs">✕</span>
+                        </button>
+                        <button
+                          onClick={() => handleBackgroundColor("#FEF3C7")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#FEF3C7" }}
+                          title="Jaune"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#DBEAFE")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#DBEAFE" }}
+                          title="Bleu clair"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#D1FAE5")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#D1FAE5" }}
+                          title="Vert clair"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#FCE7F3")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#FCE7F3" }}
+                          title="Rose clair"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#FED7AA")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#FED7AA" }}
+                          title="Orange clair"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#E9D5FF")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#E9D5FF" }}
+                          title="Lavande clair"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#FEE2E2")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#FEE2E2" }}
+                          title="Rouge clair"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#F3F4F6")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#F3F4F6" }}
+                          title="Gris clair"
+                        />
+                        <button
+                          onClick={() => handleBackgroundColor("#CFFAFE")}
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: "#CFFAFE" }}
+                          title="Cyan clair"
                         />
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Surligner</TooltipContent>
-                  </Tooltip>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Separator orientation="vertical" className="h-6" />
                   
-                  {/* Alignment */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => formatText("justifyLeft")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <AlignLeft className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Aligner à gauche</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => formatText("justifyCenter")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <AlignCenter className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Centrer</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => formatText("justifyRight")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <AlignRight className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Aligner à droite</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => formatText("justifyFull")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <AlignJustify className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Justifier</TooltipContent>
-                  </Tooltip>
+                  {/* Alignment Dropdown */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
+                          >
+                            <AlignLeft className="w-4 h-4" />
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Alignement</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => formatText("justifyLeft")}>
+                        <AlignLeft className="w-4 h-4 mr-2" />
+                        Aligner à gauche
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => formatText("justifyCenter")}>
+                        <AlignCenter className="w-4 h-4 mr-2" />
+                        Centrer
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => formatText("justifyRight")}>
+                        <AlignRight className="w-4 h-4 mr-2" />
+                        Aligner à droite
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => formatText("justifyFull")}>
+                        <AlignJustify className="w-4 h-4 mr-2" />
+                        Justifier
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Separator orientation="vertical" className="h-6" />
                   
                   {/* Lists */}
