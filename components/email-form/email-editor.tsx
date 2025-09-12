@@ -46,6 +46,8 @@ import {
   Heading2,
   Heading3,
   ChevronDown,
+  Plus,
+  Eraser,
 } from "lucide-react"
 
 export function EmailEditor() {
@@ -544,69 +546,82 @@ export function EmailEditor() {
                   </DropdownMenu>
                   <Separator orientation="vertical" className="h-6" />
                   
-                  {/* Lists */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => formatText("insertUnorderedList")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <List className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Liste à puces</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => formatText("insertOrderedList")}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <ListOrdered className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Liste numérotée</TooltipContent>
-                  </Tooltip>
+                  {/* Lists Dropdown */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
+                          >
+                            <List className="w-4 h-4" />
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Listes</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => formatText("insertUnorderedList")}>
+                        <List className="w-4 h-4 mr-2" />
+                        Liste à puces
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => formatText("insertOrderedList")}>
+                        <ListOrdered className="w-4 h-4 mr-2" />
+                        Liste numérotée
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Separator orientation="vertical" className="h-6" />
                   
-                  {/* Insert */}
+                  {/* Insert Dropdown */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer gap-1"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Insérer</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={insertLink}>
+                        <Link className="w-4 h-4 mr-2" />
+                        Insérer un lien
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={insertImage}>
+                        <ImageIcon className="w-4 h-4 mr-2" />
+                        Insérer une image
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => alert("Fonctionnalité de pièce jointe à venir")}>
+                        <Paperclip className="w-4 h-4 mr-2" />
+                        Joindre un fichier
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
+                  {/* Clear Formatting */}
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={insertLink}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => formatText("removeFormat")}
+                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer ml-auto"
                       >
-                        <Link className="w-4 h-4" />
+                        <Eraser className="w-4 h-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Insérer un lien</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={insertImage}
-                        className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer"
-                      >
-                        <ImageIcon className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Insérer une image</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-foreground hover:bg-accent hover:text-accent-foreground border-0 cursor-pointer">
-                        <Paperclip className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Joindre un fichier</TooltipContent>
+                    <TooltipContent>Effacer le formatage</TooltipContent>
                   </Tooltip>
                 </div>
               </Card>
