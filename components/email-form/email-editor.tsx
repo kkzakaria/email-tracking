@@ -287,37 +287,52 @@ export function EmailEditor() {
                   <Separator orientation="vertical" className="h-6" />
                   
                   {/* Headings Dropdown */}
-                  <Select onValueChange={handleHeading} value={currentStyle}>
-                    <SelectTrigger className="w-[140px] h-8 text-sm">
-                      <SelectValue placeholder="Style" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="normal">
-                        <div className="flex items-center gap-2">
-                          <Type className="w-4 h-4" />
-                          <span>Normal</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="<h1>">
-                        <div className="flex items-center gap-2">
-                          <Heading1 className="w-4 h-4" />
-                          <span className="font-bold text-lg">Titre 1</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="<h2>">
-                        <div className="flex items-center gap-2">
-                          <Heading2 className="w-4 h-4" />
-                          <span className="font-semibold text-base">Titre 2</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="<h3>">
-                        <div className="flex items-center gap-2">
-                          <Heading3 className="w-4 h-4" />
-                          <span className="font-medium text-sm">Titre 3</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Select onValueChange={handleHeading} value={currentStyle}>
+                          <SelectTrigger className="w-[50px] h-8 text-sm">
+                            <SelectValue>
+                              <div className="flex items-center justify-center">
+                                {currentStyle === "normal" && <Type className="w-4 h-4" />}
+                                {currentStyle === "<h1>" && <Heading1 className="w-4 h-4" />}
+                                {currentStyle === "<h2>" && <Heading2 className="w-4 h-4" />}
+                                {currentStyle === "<h3>" && <Heading3 className="w-4 h-4" />}
+                              </div>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="normal">
+                              <div className="flex items-center justify-center">
+                                <Type className="w-4 h-4" />
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="<h1>">
+                              <div className="flex items-center justify-center">
+                                <Heading1 className="w-4 h-4" />
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="<h2>">
+                              <div className="flex items-center justify-center">
+                                <Heading2 className="w-4 h-4" />
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="<h3>">
+                              <div className="flex items-center justify-center">
+                                <Heading3 className="w-4 h-4" />
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {currentStyle === "normal" && "Paragraphe normal"}
+                      {currentStyle === "<h1>" && "Titre 1"}
+                      {currentStyle === "<h2>" && "Titre 2"}
+                      {currentStyle === "<h3>" && "Titre 3"}
+                    </TooltipContent>
+                  </Tooltip>
                   <Separator orientation="vertical" className="h-6" />
                   
                   {/* Text Formatting */}
