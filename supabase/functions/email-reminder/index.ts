@@ -6,9 +6,11 @@
 // Actions: schedule, send, status, test, process-pending
 // ====================================================================================================
 
+/// <reference lib="deno.ns" />
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { handleCors, createCorsResponse } from '../_shared/cors.ts'
+import { createCorsResponse } from '../_shared/cors.ts'
 
 // Types Supabase
 interface SupabaseUser {
@@ -50,10 +52,15 @@ interface EmailReminder {
 
 interface TrackedEmail {
   id: string
+  message_id: string
   subject: string
   recipient_email: string
+  sender_email: string
   sent_at: string
+  status: string
   user_id: string | null
+  last_checked: string
+  created_at: string
 }
 
 /**
@@ -216,7 +223,7 @@ Service Exploitation Karta
       }
 
     } catch (error) {
-      console.error(`❌ Erreur envoi relance:`, error.message)
+      console.error(`❌ Erreur envoi relance:`, error instanceof Error ? error.message : error)
 
       // Marquer comme échouée
       await supabase
@@ -262,10 +269,17 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 console.log('🔄 Email Reminder Function initialized')
 
-serve(async (req: Request) => {
+serve(async (req: Request): Promise<Response> => {
   // Gérer CORS
-  const corsResponse = handleCors(req)
-  if (corsResponse) return corsResponse
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE'
+      }
+    })
+  }
 
   try {
     // Vérifier l'authentification
