@@ -10,7 +10,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { createCorsResponse } from '../_shared/cors.ts'
+import { createCorsResponse, handleCors } from '../_shared/cors.ts'
+import { GraphSubscription, GraphSubscriptionResponse, SubscriptionResponse } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -47,30 +48,6 @@ async function getApplicationToken(): Promise<string> {
 
   console.log('✅ Token d\'application obtenu via app-token-manager')
   return data.data.access_token
-}
-
-// ====================================================================================================
-// TYPES MICROSOFT GRAPH
-// ====================================================================================================
-
-interface GraphSubscription {
-  id?: string
-  changeType: string
-  notificationUrl: string
-  resource: string
-  expirationDateTime: string
-  clientState: string
-  latestSupportedTlsVersion?: string
-}
-
-interface GraphSubscriptionResponse {
-  id: string
-  resource: string
-  changeType: string
-  notificationUrl: string
-  expirationDateTime: string
-  clientState: string
-  applicationId?: string
 }
 
 // ====================================================================================================
@@ -255,7 +232,7 @@ async function handleCreateSubscription(userEmail?: string): Promise<Response> {
       return createCorsResponse({
         success: false,
         error: 'Impossible de créer la subscription Graph'
-      }, 500)
+      }, { status: 500 })
     }
 
     // Sauvegarder dans Supabase
@@ -281,7 +258,7 @@ async function handleCreateSubscription(userEmail?: string): Promise<Response> {
       return createCorsResponse({
         success: false,
         error: 'Erreur sauvegarde subscription'
-      }, 500)
+      }, { status: 500 })
     }
 
     return createCorsResponse({
@@ -299,7 +276,7 @@ async function handleCreateSubscription(userEmail?: string): Promise<Response> {
     return createCorsResponse({
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, 500)
+    }, { status: 500 })
   }
 }
 
@@ -327,7 +304,7 @@ async function handleRenewSubscriptions(): Promise<Response> {
       return createCorsResponse({
         success: false,
         error: 'Erreur récupération subscriptions'
-      }, 500)
+      }, { status: 500 })
     }
 
     if (!subscriptions || subscriptions.length === 0) {
@@ -387,7 +364,7 @@ async function handleRenewSubscriptions(): Promise<Response> {
     return createCorsResponse({
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, 500)
+    }, { status: 500 })
   }
 }
 
@@ -412,7 +389,7 @@ async function handleListSubscriptions(): Promise<Response> {
       return createCorsResponse({
         success: false,
         error: 'Erreur récupération subscriptions'
-      }, 500)
+      }, { status: 500 })
     }
 
     // Récupérer depuis Microsoft Graph
@@ -433,7 +410,7 @@ async function handleListSubscriptions(): Promise<Response> {
     return createCorsResponse({
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, 500)
+    }, { status: 500 })
   }
 }
 
@@ -461,7 +438,7 @@ async function handleCleanupSubscriptions(): Promise<Response> {
       return createCorsResponse({
         success: false,
         error: 'Erreur récupération subscriptions expirées'
-      }, 500)
+      }, { status: 500 })
     }
 
     if (!expiredSubscriptions || expiredSubscriptions.length === 0) {
@@ -505,7 +482,7 @@ async function handleCleanupSubscriptions(): Promise<Response> {
     return createCorsResponse({
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, 500)
+    }, { status: 500 })
   }
 }
 
@@ -513,11 +490,10 @@ async function handleCleanupSubscriptions(): Promise<Response> {
 // HANDLER PRINCIPAL
 // ====================================================================================================
 
-serve(async (req: Request) => {
+serve(async (req: Request): Promise<Response> => {
   // Gestion CORS
-  if (req.method === 'OPTIONS') {
-    return handleCors(req)
-  }
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
 
   try {
     console.log(`📊 Subscription Manager: ${req.method} ${req.url}`)
@@ -526,7 +502,7 @@ serve(async (req: Request) => {
     const action = url.searchParams.get('action') || 'list'
 
     // Support du body pour les appels POST
-    let bodyData: any = {}
+    let bodyData: Record<string, unknown> = {}
     if (req.method === 'POST') {
       try {
         bodyData = await req.json()
@@ -537,7 +513,7 @@ serve(async (req: Request) => {
 
     switch (action) {
       case 'create':
-        return await handleCreateSubscription(bodyData.userEmail)
+        return await handleCreateSubscription(bodyData.userEmail as string)
 
       case 'renew':
         return await handleRenewSubscriptions()
@@ -561,7 +537,7 @@ serve(async (req: Request) => {
           success: false,
           error: `Action non supportée: ${action}`,
           availableActions: ['create', 'renew', 'list', 'cleanup', 'status']
-        }, 400)
+        }, { status: 400 })
     }
 
   } catch (error) {
@@ -569,7 +545,7 @@ serve(async (req: Request) => {
     return createCorsResponse({
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, 500)
+    }, { status: 500 })
   }
 })
 

@@ -9,6 +9,7 @@
 /// <reference lib="deno.ns" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { GraphMessage, SyncStats, EmailHistorySyncResponse } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -47,43 +48,6 @@ async function getApplicationToken(): Promise<string> {
 }
 
 // ====================================================================================================
-// TYPES
-// ====================================================================================================
-
-interface GraphMessage {
-  id: string
-  internetMessageId?: string
-  conversationId?: string
-  subject?: string
-  from?: {
-    emailAddress?: {
-      address?: string
-      name?: string
-    }
-  }
-  toRecipients?: Array<{
-    emailAddress?: {
-      address?: string
-      name?: string
-    }
-  }>
-  receivedDateTime?: string
-  sentDateTime?: string
-  isRead?: boolean
-  isDraft?: boolean
-  parentFolderId?: string
-  hasAttachments?: boolean
-}
-
-interface SyncStats {
-  totalMessages: number
-  newTrackedEmails: number
-  updatedEmails: number
-  errors: number
-  syncedPeriod: string
-}
-
-// ====================================================================================================
 // SYNCHRONISATION PRINCIPALE
 // ====================================================================================================
 
@@ -118,16 +82,16 @@ async function syncEmailHistory(): Promise<SyncStats> {
     // 1. Synchroniser les emails envoyés (SentItems)
     console.log('📤 Synchronisation des emails envoyés...')
     const sentStats = await syncSentEmails(accessToken, supabase, serviceEmail, dateFilter)
-    stats.totalMessages += sentStats.totalMessages
-    stats.newTrackedEmails += sentStats.newTrackedEmails
-    stats.errors += sentStats.errors
+    stats.totalMessages += sentStats.totalMessages || 0
+    stats.newTrackedEmails += sentStats.newTrackedEmails || 0
+    stats.errors += sentStats.errors || 0
 
     // 2. Synchroniser les emails reçus (Inbox)
     console.log('📬 Synchronisation des emails reçus...')
     const receivedStats = await syncReceivedEmails(accessToken, supabase, serviceEmail, dateFilter)
-    stats.totalMessages += receivedStats.totalMessages
-    stats.updatedEmails += receivedStats.updatedEmails
-    stats.errors += receivedStats.errors
+    stats.totalMessages += receivedStats.totalMessages || 0
+    stats.updatedEmails += receivedStats.updatedEmails || 0
+    stats.errors += receivedStats.errors || 0
 
     console.log(`✅ Synchronisation terminée:`)
     console.log(`   - Messages traités: ${stats.totalMessages}`)

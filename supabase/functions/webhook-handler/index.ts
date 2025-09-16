@@ -9,6 +9,7 @@
 import { serve } from "std/http/server.ts"
 import { createClient } from '@supabase/supabase-js'
 import { createCorsResponse } from '../_shared/cors.ts'
+import { WebhookNotification, GraphMessage } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -45,51 +46,6 @@ async function getApplicationToken(): Promise<string> {
 
   console.log('✅ Token d\'application obtenu via app-token-manager')
   return data.data.access_token
-}
-
-// ====================================================================================================
-// TYPES MICROSOFT GRAPH
-// ====================================================================================================
-
-interface WebhookNotification {
-  value: Array<{
-    subscriptionId: string
-    clientState: string
-    changeType: string
-    resource: string
-    resourceData?: {
-      id: string
-      '@odata.type': string
-      '@odata.etag': string
-    }
-    subscriptionExpirationDateTime: string
-    tenantId?: string
-  }>
-  validationTokens?: string[]
-}
-
-interface GraphMessage {
-  id: string
-  internetMessageId?: string
-  conversationId?: string
-  subject?: string
-  from?: {
-    emailAddress?: {
-      address?: string
-      name?: string
-    }
-  }
-  toRecipients?: Array<{
-    emailAddress?: {
-      address?: string
-      name?: string
-    }
-  }>
-  receivedDateTime?: string
-  sentDateTime?: string
-  isRead?: boolean
-  isDraft?: boolean
-  parentFolderId?: string
 }
 
 // ====================================================================================================
@@ -194,7 +150,7 @@ async function checkIfMessageInSentItems(messageId: string): Promise<boolean> {
 /**
  * Traiter un message envoyé (création de tracking)
  */
-async function handleSentMessage(supabase: ReturnType<typeof createClient>, message: GraphMessage): Promise<void> {
+async function handleSentMessage(supabase: any, message: GraphMessage): Promise<void> {
   try {
     console.log('📤 Création d\'une entrée de tracking pour message envoyé')
 
@@ -235,12 +191,12 @@ async function handleSentMessage(supabase: ReturnType<typeof createClient>, mess
 /**
  * Traiter un message reçu (potentielle réponse)
  */
-async function handleReceivedMessage(supabase: ReturnType<typeof createClient>, message: GraphMessage): Promise<void> {
+async function handleReceivedMessage(supabase: any, message: GraphMessage): Promise<void> {
   try {
     console.log('📬 Recherche d\'emails trackés correspondant au message reçu')
 
     // Rechercher par conversation ID ou sujet
-    let trackedEmails = []
+    let trackedEmails: any[] = []
 
     if (message.conversationId) {
       // Rechercher par conversation d'abord

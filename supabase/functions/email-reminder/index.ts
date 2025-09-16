@@ -11,6 +11,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createCorsResponse } from '../_shared/cors.ts'
+import { TrackedEmail, EmailReminder, EmailReminderWithTrackedEmail, ReminderProcessingResult } from '../_shared/types.ts'
 
 // Types Supabase
 interface SupabaseUser {
@@ -19,13 +20,9 @@ interface SupabaseUser {
   [key: string]: unknown
 }
 
-interface ReminderConfig {
+interface ReminderSettings {
   enabled: boolean
-  delays: Array<{
-    value: number
-    unit: 'hours' | 'days' | 'weeks'
-    label: string
-  }>
+  delay_hours: number[]
   templates: {
     [key: string]: string
   }
@@ -37,35 +34,7 @@ interface ReminderConfig {
   max_reminders: number
 }
 
-interface EmailReminder {
-  id: string
-  tracked_email_id: string
-  user_id: string | null
-  reminder_number: number
-  scheduled_for: string
-  sent_at?: string
-  compiled_message?: string
-  status: 'SCHEDULED' | 'SENT' | 'CANCELLED' | 'FAILED'
-  created_at: string
-  updated_at: string
-}
 
-interface TrackedEmail {
-  id: string
-  message_id: string
-  subject: string
-  recipient_email: string
-  sender_email: string
-  sent_at: string
-  status: string
-  user_id: string | null
-  last_checked: string
-  created_at: string
-}
-
-interface EmailReminderWithTrackedEmail extends EmailReminder {
-  tracked_emails: TrackedEmail
-}
 
 /**
  * Obtenir un token d'application via app-token-manager
@@ -149,7 +118,7 @@ async function sendEmailViaGraph(
 /**
  * Traiter toutes les relances en attente
  */
-async function processPendingReminders(supabase: any): Promise<{processed: number, sent: number, failed: number}> {
+async function processPendingReminders(supabase: any): Promise<ReminderProcessingResult> {
   console.log('🔄 Traitement des relances en attente...')
 
   // Récupérer les relances à envoyer
@@ -362,7 +331,7 @@ async function handleScheduleReminders(user: SupabaseUser, targetEmailIds: strin
       }, { status: 400 })
     }
 
-    const config = profile.reminder_config as ReminderConfig
+    const config = profile.reminder_config as ReminderSettings
 
     if (!config.enabled) {
       return createCorsResponse({
@@ -807,7 +776,7 @@ async function checkWorkingHours(userId: string): Promise<boolean> {
 
     if (!profile?.reminder_config) return true // Par défaut, toujours OK
 
-    const config = profile.reminder_config as ReminderConfig
+    const config = profile.reminder_config as ReminderSettings
     const now = new Date()
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
     const currentHour = now.getHours()
@@ -907,7 +876,7 @@ async function getMaxReminders(userId: string): Promise<number> {
       .eq('auth_user_id', userId)
       .single()
 
-    return (profile?.reminder_config as ReminderConfig)?.max_reminders || 3
+    return (profile?.reminder_config as ReminderSettings)?.max_reminders || 3
   } catch (error) {
     console.error('Erreur récupération max reminders:', error)
     return 3

@@ -7,24 +7,13 @@
 // ====================================================================================================
 
 import { serve } from "std/http/server.ts"
-import { createCorsResponse } from '../_shared/cors.ts'
+import { createCorsResponse, handleCors } from '../_shared/cors.ts'
+import { AppTokenData, CachedToken, TokenManagerResponse } from '../_shared/types.ts'
 
 // Configuration Azure AD
 const AZURE_CLIENT_ID = Deno.env.get('AZURE_CLIENT_ID')
 const AZURE_CLIENT_SECRET = Deno.env.get('AZURE_CLIENT_SECRET')
 const AZURE_TENANT_ID = Deno.env.get('AZURE_TENANT_ID')
-
-interface AppTokenData {
-  access_token: string
-  token_type: string
-  expires_in: number
-  expires_at: number
-  scope: string
-}
-
-interface CachedToken extends AppTokenData {
-  cached_at: number
-}
 
 // Cache en mémoire du token (persiste pendant la durée de vie de la fonction)
 let tokenCache: CachedToken | null = null
@@ -127,15 +116,8 @@ function invalidateCache(): void {
 
 serve(async (req: Request): Promise<Response> => {
   // Gestion CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE'
-      }
-    })
-  }
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
 
   try {
 
