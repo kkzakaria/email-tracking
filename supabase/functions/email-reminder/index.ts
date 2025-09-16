@@ -244,24 +244,6 @@ Service Exploitation Karta
   return { processed, sent: sentCount, failed: failedCount }
 }
 
-interface TrackedEmailOld {
-  id: string
-  message_id: string
-  subject: string
-  recipient_email: string
-  sender_email?: string
-  sent_at: string
-  status: 'PENDING' | 'REPLIED' | 'FAILED' | 'EXPIRED'
-  user_id: string
-}
-
-interface MicrosoftTokenData {
-  access_token_encrypted: string
-  refresh_token_encrypted: string
-  token_nonce: string
-  expires_at: string
-  user_id: string
-}
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -311,7 +293,7 @@ serve(async (req: Request): Promise<Response> => {
         const body = await req.json()
         action = body.action || action
         targetEmailIds = body.target_email_ids || []
-      } catch (error) {
+      } catch (_error) {
         console.log('📝 Pas de body JSON, utilisation des paramètres URL')
       }
     }
@@ -413,7 +395,14 @@ async function handleScheduleReminders(user: SupabaseUser, targetEmailIds: strin
     }
 
     let scheduled = 0
-    const details: any[] = []
+    const details: Array<{
+      email_id: string;
+      subject: string;
+      recipient?: string;
+      existing_reminders?: number;
+      new_reminders?: number;
+      error?: string;
+    }> = []
 
     // Pour chaque email, programmer les relances manquantes
     for (const email of emails as TrackedEmail[]) {
@@ -551,7 +540,15 @@ async function handleSendReminders(user: SupabaseUser, targetEmailIds: string[])
 
     let sent = 0
     let failed = 0
-    const details: any[] = []
+    const details: Array<{
+      reminder_id: string;
+      email_id?: string;
+      email_subject?: string;
+      recipient?: string;
+      reminder_number?: number;
+      status: 'sent' | 'failed';
+      error?: string;
+    }> = []
 
     // Traiter chaque relance due
     for (const reminder of reminders as (EmailReminder & { tracked_emails: TrackedEmail })[]) {
@@ -572,10 +569,10 @@ async function handleSendReminders(user: SupabaseUser, targetEmailIds: string[])
 
         console.log(`📧 Envoi relance ${reminder.reminder_number} pour: ${trackedEmail.subject}`)
 
-        // Récupérer le token Microsoft de l'utilisateur
-        const accessToken = await getUserMicrosoftToken(user.id)
+        // Récupérer le token d'application Microsoft
+        const accessToken = await getApplicationToken()
         if (!accessToken) {
-          throw new Error('Token Microsoft manquant - reconnexion requise')
+          throw new Error('Token d\'application Microsoft indisponible')
         }
 
         // Compiler le template de la relance
@@ -824,24 +821,6 @@ async function checkWorkingHours(userId: string): Promise<boolean> {
   }
 }
 
-/**
- * Récupérer le token Microsoft déchiffré
- */
-async function getUserMicrosoftToken(userId: string): Promise<string | null> {
-  try {
-    // Cette fonction devrait déchiffrer le token Microsoft depuis microsoft_tokens
-    // Pour l'instant, on retourne null pour indiquer qu'il faut implémenter le déchiffrement
-    console.log('🔑 Récupération token Microsoft pour utilisateur:', userId)
-
-    // TODO: Implémenter le déchiffrement du token Microsoft
-    // Réutiliser la logique des autres Edge Functions existantes
-
-    return null
-  } catch (error) {
-    console.error('❌ Erreur récupération token Microsoft:', error)
-    return null
-  }
-}
 
 /**
  * Envoyer une relance comme réponse au message original
@@ -934,7 +913,7 @@ async function getMaxReminders(userId: string): Promise<number> {
 /**
  * Logger un événement dans webhook_events
  */
-async function logWebhookEvent(supabase: any, changeType: string, data: any): Promise<void> {
+async function logWebhookEvent(supabase: any, changeType: string, data: unknown): Promise<void> {
   try {
     await supabase
       .from('webhook_events')

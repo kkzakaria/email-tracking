@@ -37,8 +37,7 @@
     "npm:tailwind-merge@^3.3.1": "3.3.1",
     "npm:tailwindcss@4": "4.1.13",
     "npm:tw-animate-css@^1.3.8": "1.3.8",
-    "npm:typescript@5": "5.9.2",
-    "npm:zod@^4.1.5": "4.1.5"
+    "npm:typescript@5": "5.9.2"
   },
   "npm": {
     "@alloc/quick-lru@5.2.0": {
@@ -4260,9 +4259,6 @@
     },
     "yocto-queue@0.1.0": {
       "integrity": "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q=="
-    },
-    "zod@4.1.5": {
-      "integrity": "sha512-rcUUZqlLJgBC33IT3PNMgsCq6TzLQEG/Ei/KTCU0PedSWRMAXoOUN+4t/0H+Q8bdnLPdqUYnvboJT0bn/229qg=="
     }
   },
   "redirects": {
@@ -4307,14 +4303,21 @@
     "packageJson": {
       "dependencies": [
         "npm:@eslint/eslintrc@3",
+        "npm:@hookform/resolvers@^5.2.1",
         "npm:@microsoft/microsoft-graph-client@^3.0.7",
         "npm:@microsoft/microsoft-graph-types@^2.40.0",
         "npm:@radix-ui/react-avatar@^1.1.10",
         "npm:@radix-ui/react-checkbox@^1.3.3",
+        "npm:@radix-ui/react-dialog@^1.1.15",
         "npm:@radix-ui/react-dropdown-menu@^2.1.16",
+        "npm:@radix-ui/react-label@^2.1.7",
+        "npm:@radix-ui/react-progress@^1.1.7",
+        "npm:@radix-ui/react-scroll-area@^1.2.10",
         "npm:@radix-ui/react-select@^2.2.6",
         "npm:@radix-ui/react-separator@^1.1.7",
         "npm:@radix-ui/react-slot@^1.2.3",
+        "npm:@radix-ui/react-switch@^1.2.6",
+        "npm:@radix-ui/react-tabs@^1.1.13",
         "npm:@radix-ui/react-tooltip@^1.2.8",
         "npm:@supabase/ssr@0.7",
         "npm:@supabase/supabase-js@^2.57.0",
@@ -4336,6 +4339,8 @@
         "npm:next@15.5.2",
         "npm:radix-ui@^1.4.3",
         "npm:react-dom@19.1.0",
+        "npm:react-dropzone@^14.3.8",
+        "npm:react-hook-form@^7.62.0",
         "npm:react@19.1.0",
         "npm:recharts@^3.1.2",
         "npm:sonner@^2.0.7",
@@ -4343,7 +4348,7 @@
         "npm:tailwindcss@4",
         "npm:tw-animate-css@^1.3.8",
         "npm:typescript@5",
-        "npm:zod@^4.1.5"
+        "npm:zod@^4.1.7"
       ]
     }
   }
