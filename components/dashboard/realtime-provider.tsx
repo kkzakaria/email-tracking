@@ -31,6 +31,7 @@ interface RealtimeProviderProps {
 }
 
 export function RealtimeProvider({ children, initialEmails = [] }: RealtimeProviderProps) {
+  console.log('🚀 RealtimeProvider initialized with', initialEmails.length, 'emails')
   const [emails, setEmails] = useState<TrackedEmail[]>(initialEmails)
   const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -39,20 +40,28 @@ export function RealtimeProvider({ children, initialEmails = [] }: RealtimeProvi
   const refreshData = async () => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const supabase = createClient()
+      console.log('🔄 RefreshData: Starting data refresh...')
+
       const { data, error } = await supabase
         .from('tracked_emails')
         .select('*')
         .order('sent_at', { ascending: false })
         .limit(1000)
 
+      console.log('📊 RefreshData Results:', {
+        dataLength: data?.length || 0,
+        error: error?.message || null,
+        sampleData: data?.[0]?.subject || 'none'
+      })
+
       if (error) throw error
 
       setEmails(data || [])
     } catch (err) {
-      console.error('Erreur lors du refresh des données:', err)
+      console.error('❌ Erreur lors du refresh des données:', err)
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
     } finally {
       setIsLoading(false)

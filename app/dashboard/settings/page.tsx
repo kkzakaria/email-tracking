@@ -4,10 +4,9 @@ import { User, RefreshCw, FileText, Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SubscriptionManager } from "@/components/dashboard/subscription-manager";
-import MicrosoftOAuth from "@/components/dashboard/microsoft-oauth";
 import { EmailHistorySync } from "@/components/dashboard/email-history-sync";
 import UsersTable from "@/components/dashboard/users-table";
-import { RemindersSettings } from "@/components/dashboard/reminders-settings";
+import { ReminderConfiguration } from "@/components/dashboard/reminder-configuration";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -51,7 +50,7 @@ export default async function SettingsPage() {
 
           {/* Reminders Tab Content */}
           <TabsContent value="reminders" className="px-4 sm:px-6 lg:px-8 pb-8">
-            <RemindersSettings />
+            <ReminderConfiguration />
           </TabsContent>
 
           {/* Templates Tab Content */}
@@ -106,12 +105,9 @@ export default async function SettingsPage() {
 
           {/* System Tab Content */}
           <TabsContent value="system" className="px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
-            {/* Microsoft OAuth Connection */}
-            <MicrosoftOAuth />
-            
             {/* Email History Sync */}
             <EmailHistorySync />
-            
+
             {/* Subscription Management */}
             <Card>
               <CardHeader>

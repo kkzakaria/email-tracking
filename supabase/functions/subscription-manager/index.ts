@@ -1,815 +1,552 @@
 // ====================================================================================================
-// SUPABASE EDGE FUNCTION: subscription-manager
+// SUPABASE EDGE FUNCTION: subscription-manager (Version Application Permissions v2.0)
 // ====================================================================================================
-// Description: Gère les subscriptions Microsoft Graph (création, renouvellement, monitoring)
+// Description: Gère les subscriptions Microsoft Graph avec token d'application centralisé
 // URL: https://[project-id].supabase.co/functions/v1/subscription-manager
+// Version: 2.0 - Architecture simplifiée avec permissions application
 // ====================================================================================================
+
+/// <reference lib="deno.ns" />
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { handleCors, createCorsResponse } from '../_shared/cors.ts'
-// Les fonctions de déchiffrement sont maintenant intégrées dans ce fichier (voir lignes 673+)
-
-// Types Supabase
-interface SupabaseUser {
-  id: string
-  email?: string
-  [key: string]: unknown
-}
-
-interface MicrosoftTokenData {
-  id: string
-  user_id: string
-  access_token_encrypted: string
-  refresh_token_encrypted: string
-  token_nonce: string
-  expires_at: string
-  scope: string
-  created_at: string
-  updated_at: string
-  last_refreshed_at?: string
-  refresh_attempts: number
-}
-
-// Types Microsoft Graph
-interface GraphSubscription {
-  id?: string
-  changeType: string
-  notificationUrl: string
-  resource: string
-  expirationDateTime: string
-  clientState: string
-  latestSupportedTlsVersion?: string
-}
-
-interface GraphSubscriptionResponse {
-  id: string
-  resource: string
-  changeType: string
-  notificationUrl: string
-  expirationDateTime: string
-  clientState: string
-}
+import { createCorsResponse, handleCors } from '../_shared/cors.ts'
+import { GraphSubscription, GraphSubscriptionResponse } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const WEBHOOK_CLIENT_STATE = Deno.env.get('WEBHOOK_CLIENT_STATE') || 'supabase-webhook-secret'
+const WEBHOOK_CLIENT_STATE = Deno.env.get('WEBHOOK_CLIENT_STATE')!
 
-// Note: AZURE_* variables ne sont plus nécessaires car nous utilisons les tokens utilisateur délégués
-// au lieu du token d'application client_credentials
-
-// URL de base pour les webhooks
-const WEBHOOK_BASE_URL = `${SUPABASE_URL}/functions/v1/webhook-handler`
-
-console.log('🔧 Subscription Manager initialized')
-
-serve(async (req: Request) => {
-  // Gérer la requête OPTIONS pour le preflight CORS
-  const corsResponse = handleCors(req)
-  if (corsResponse) return corsResponse
-
-  try {
-    // Vérifier l'authentification utilisateur
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return createCorsResponse({
-        error: 'Authorization header manquant',
-        message: 'Token Supabase requis'
-      }, { status: 401 })
-    }
-
-    // Récupérer l'utilisateur Supabase
-    const user = await getSupabaseUser(authHeader)
-    if (!user) {
-      return createCorsResponse({
-        error: 'Utilisateur non authentifié',
-        message: 'Token Supabase invalide'
-      }, { status: 401 })
-    }
-
-    const url = new URL(req.url)
-    let action = url.searchParams.get('action') || 'status'
-    
-    // Si pas d'action dans l'URL, vérifier le body pour les appels via supabase.functions.invoke
-    if (!url.searchParams.get('action') && req.method === 'POST') {
-      try {
-        const body = await req.json()
-        action = body.action || action
-      } catch (error) {
-        console.log(`📝 Pas de body JSON, utilisation des paramètres URL : ${error}`)
-      }
-    }
-    
-    // Pour les appels GET sans paramètre, action par défaut = status
-    if (req.method === 'GET' && !url.searchParams.get('action')) {
-      action = 'status'
-    }
-    
-    console.log(`📨 ${req.method} ${req.url}`)
-    console.log('🎯 Action demandée:', action, 'pour user:', user.id)
-
-    // ================================================================================================
-    // ACTIONS DISPONIBLES
-    // ================================================================================================
-    switch (action) {
-      case 'create':
-        return await handleCreateSubscription(user)
-      
-      case 'renew':
-        return await handleRenewSubscriptions(user)
-      
-      case 'status':
-        return await handleGetStatus(user)
-      
-      case 'cleanup':
-        return await handleCleanupSubscriptions(user)
-      
-      default:
-        return createCorsResponse({
-          error: 'Action non supportée',
-          availableActions: ['create', 'renew', 'status', 'cleanup']
-        }, { status: 400 })
-    }
-
-  } catch (error: unknown) {
-    console.error('❌ Erreur dans subscription manager:', error)
-    return createCorsResponse({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    }, { status: 500 })
+/**
+ * Obtenir un token d'application via app-token-manager
+ */
+async function getApplicationToken(): Promise<string> {
+  const baseUrl = Deno.env.get('SUPABASE_URL')
+  if (!baseUrl) {
+    throw new Error('SUPABASE_URL non configurée')
   }
-})
+
+  const tokenManagerUrl = `${baseUrl}/functions/v1/app-token-manager?action=get-token`
+
+  const response = await fetch(tokenManagerUrl, {
+    headers: {
+      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+    }
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('❌ Erreur obtention token application:', error)
+    throw new Error('Impossible d\'obtenir le token d\'application')
+  }
+
+  const data = await response.json()
+  if (!data.success) {
+    throw new Error(data.error || 'Erreur token manager')
+  }
+
+  console.log('✅ Token d\'application obtenu via app-token-manager')
+  return data.data.access_token
+}
 
 // ====================================================================================================
-// CRÉER UNE NOUVELLE SUBSCRIPTION (DUAL: INBOX + SENT ITEMS)
+// GESTION DES SUBSCRIPTIONS
 // ====================================================================================================
-async function handleCreateSubscription(user: SupabaseUser): Promise<Response> {
+
+/**
+ * Créer une subscription Microsoft Graph
+ */
+async function createGraphSubscription(
+  accessToken: string,
+  userEmail: string,
+  webhookUrl: string
+): Promise<GraphSubscriptionResponse | null> {
   try {
-    console.log('🆕 Création subscriptions duales pour user:', user.id)
+    console.log(`📝 Création subscription pour: ${userEmail}`)
 
-    // Récupérer le token Microsoft de l'utilisateur
-    const accessToken = await getUserMicrosoftToken(user.id)
-    if (!accessToken) {
-      return createCorsResponse({
-        error: 'Token Microsoft manquant',
-        message: 'Veuillez vous connecter à Microsoft dans les paramètres'
-      }, { status: 401 })
+    // Calculer l'expiration (maximum 4230 minutes = ~71h pour les mailboxes)
+    const expirationDateTime = new Date(Date.now() + (4230 * 60 * 1000)).toISOString()
+
+    const subscriptionData: GraphSubscription = {
+      changeType: 'created',
+      notificationUrl: webhookUrl,
+      resource: `users/${userEmail}/messages`,
+      expirationDateTime: expirationDateTime,
+      clientState: WEBHOOK_CLIENT_STATE,
+      latestSupportedTlsVersion: 'v1_2'
     }
 
-    // Calculer la date d'expiration (max 3 jours pour les messages)
-    const expirationDate = new Date()
-    expirationDate.setHours(expirationDate.getHours() + 71) // ~3 jours
+    console.log('📡 Données subscription:', JSON.stringify(subscriptionData, null, 2))
 
-    // Définir les deux subscriptions : inbox + sent items
-    const subscriptions: GraphSubscription[] = [
-      {
-        changeType: 'created',
-        notificationUrl: WEBHOOK_BASE_URL,
-        resource: '/me/messages', // Messages reçus (inbox)
-        expirationDateTime: expirationDate.toISOString(),
-        clientState: WEBHOOK_CLIENT_STATE,
-        latestSupportedTlsVersion: 'v1_2'
+    const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
       },
-      {
-        changeType: 'created',
-        notificationUrl: WEBHOOK_BASE_URL,
-        resource: '/me/mailFolders/sentitems/messages', // Messages envoyés
-        expirationDateTime: expirationDate.toISOString(),
-        clientState: WEBHOOK_CLIENT_STATE,
-        latestSupportedTlsVersion: 'v1_2'
-      }
-    ]
+      body: JSON.stringify(subscriptionData)
+    })
 
-    const createdSubscriptions: GraphSubscriptionResponse[] = []
-    let errors = 0
-
-    // Créer les deux subscriptions
-    for (const subscription of subscriptions) {
-      try {
-        console.log('📤 Envoi subscription à Microsoft Graph:', {
-          resource: subscription.resource,
-          notificationUrl: subscription.notificationUrl,
-          expirationDateTime: subscription.expirationDateTime
-        })
-
-        // Créer la subscription via Microsoft Graph
-        const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(subscription)
-        })
-
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error('❌ Erreur création subscription Graph:', response.status, errorText, 'Resource:', subscription.resource)
-          errors++
-          continue
-        }
-
-        const graphSubscription: GraphSubscriptionResponse = await response.json()
-        console.log('✅ Subscription créée:', graphSubscription.id, 'Resource:', graphSubscription.resource)
-
-        // Sauvegarder en base de données
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-        
-        const { error: dbError } = await supabase
-          .from('graph_subscriptions')
-          .insert({
-            subscription_id: graphSubscription.id,
-            resource: graphSubscription.resource,
-            notification_url: graphSubscription.notificationUrl,
-            change_types: [graphSubscription.changeType],
-            expiration_datetime: graphSubscription.expirationDateTime,
-            client_state: graphSubscription.clientState,
-            is_active: true,
-            last_renewal_at: new Date().toISOString()
-          })
-
-        if (dbError) {
-          console.error('❌ Erreur sauvegarde DB:', dbError)
-          // Tentative de supprimer la subscription Graph en cas d'erreur DB
-          await deleteGraphSubscription(accessToken, graphSubscription.id)
-          errors++
-          continue
-        }
-
-        console.log('✅ Subscription sauvegardée en DB:', graphSubscription.resource)
-        createdSubscriptions.push(graphSubscription)
-
-      } catch (error: unknown) {
-        console.error('❌ Erreur pour subscription:', subscription.resource, error)
-        errors++
-      }
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erreur création subscription Graph:', response.status, errorText)
+      return null
     }
 
-    // Vérifier les résultats
-    if (createdSubscriptions.length === 0) {
-      return createCorsResponse({
-        error: 'Aucune subscription créée',
-        message: 'Toutes les subscriptions ont échoué',
-        errors
-      }, { status: 500 })
+    const subscription: GraphSubscriptionResponse = await response.json()
+    console.log('✅ Subscription créée:', subscription.id)
+
+    return subscription
+
+  } catch (error) {
+    console.error('❌ Erreur createGraphSubscription:', error)
+    return null
+  }
+}
+
+/**
+ * Renouveler une subscription Microsoft Graph
+ */
+async function renewGraphSubscription(
+  accessToken: string,
+  subscriptionId: string
+): Promise<boolean> {
+  try {
+    console.log(`🔄 Renouvellement subscription: ${subscriptionId}`)
+
+    // Calculer nouvelle expiration
+    const expirationDateTime = new Date(Date.now() + (4230 * 60 * 1000)).toISOString()
+
+    const response = await fetch(`https://graph.microsoft.com/v1.0/subscriptions/${subscriptionId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        expirationDateTime: expirationDateTime
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erreur renouvellement subscription:', response.status, errorText)
+      return false
     }
 
-    const success = createdSubscriptions.length === subscriptions.length
-    const statusCode = success ? 201 : 207 // 207 = Multi-Status
+    console.log('✅ Subscription renouvelée avec succès')
+    return true
 
-    return createCorsResponse({
-      success,
-      subscriptions: createdSubscriptions.map(sub => ({
-        id: sub.id,
-        resource: sub.resource,
-        expirationDateTime: sub.expirationDateTime,
-        notificationUrl: sub.notificationUrl
-      })),
-      message: `${createdSubscriptions.length}/${subscriptions.length} subscriptions créées`,
-      total: subscriptions.length,
-      created: createdSubscriptions.length,
-      errors
-    }, { status: statusCode })
+  } catch (error) {
+    console.error('❌ Erreur renewGraphSubscription:', error)
+    return false
+  }
+}
 
-  } catch (error: unknown) {
-    console.error('❌ Erreur création subscriptions duales:', error)
-    return createCorsResponse({
-      error: 'Erreur création subscriptions duales',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+/**
+ * Supprimer une subscription Microsoft Graph
+ */
+async function deleteGraphSubscription(
+  accessToken: string,
+  subscriptionId: string
+): Promise<boolean> {
+  try {
+    console.log(`🗑️ Suppression subscription: ${subscriptionId}`)
+
+    const response = await fetch(`https://graph.microsoft.com/v1.0/subscriptions/${subscriptionId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+
+    if (!response.ok && response.status !== 404) {
+      const errorText = await response.text()
+      console.error('❌ Erreur suppression subscription:', response.status, errorText)
+      return false
+    }
+
+    console.log('✅ Subscription supprimée avec succès')
+    return true
+
+  } catch (error) {
+    console.error('❌ Erreur deleteGraphSubscription:', error)
+    return false
+  }
+}
+
+/**
+ * Lister toutes les subscriptions
+ */
+async function listGraphSubscriptions(accessToken: string): Promise<GraphSubscriptionResponse[]> {
+  try {
+    console.log('📋 Liste des subscriptions Graph')
+
+    const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erreur liste subscriptions:', response.status, errorText)
+      return []
+    }
+
+    const data = await response.json()
+    const subscriptions: GraphSubscriptionResponse[] = data.value || []
+
+    console.log(`📊 ${subscriptions.length} subscription(s) trouvée(s)`)
+    return subscriptions
+
+  } catch (error) {
+    console.error('❌ Erreur listGraphSubscriptions:', error)
+    return []
   }
 }
 
 // ====================================================================================================
-// RENOUVELER LES SUBSCRIPTIONS EXISTANTES
+// HANDLERS ACTIONS
 // ====================================================================================================
-async function handleRenewSubscriptions(user: SupabaseUser): Promise<Response> {
+
+/**
+ * Handler: Créer une subscription
+ */
+async function handleCreateSubscription(userEmail?: string): Promise<Response> {
+  try {
+    const email = userEmail || 'service-exploitation@karta-transit.ci'
+    console.log(`📝 Création subscription pour: ${email}`)
+
+    const accessToken = await getApplicationToken()
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    // URL du webhook
+    const webhookUrl = `${SUPABASE_URL}/functions/v1/webhook-handler`
+
+    // Créer la subscription dans Microsoft Graph
+    const graphSubscription = await createGraphSubscription(accessToken, email, webhookUrl)
+
+    if (!graphSubscription) {
+      return createCorsResponse({
+        success: false,
+        error: 'Impossible de créer la subscription Graph'
+      }, { status: 500 })
+    }
+
+    // Sauvegarder dans Supabase
+    const { error: insertError } = await supabase
+      .from('graph_subscriptions')
+      .insert({
+        subscription_id: graphSubscription.id,
+        user_email: email,
+        resource: graphSubscription.resource,
+        change_type: graphSubscription.changeType,
+        notification_url: graphSubscription.notificationUrl,
+        expires_at: graphSubscription.expirationDateTime,
+        client_state: graphSubscription.clientState,
+        status: 'active',
+        user_id: null, // Plus de user_id avec l'architecture application
+        created_at: new Date().toISOString()
+      })
+
+    if (insertError) {
+      console.error('❌ Erreur sauvegarde subscription:', insertError)
+      // Tenter de supprimer la subscription Graph créée
+      await deleteGraphSubscription(accessToken, graphSubscription.id)
+      return createCorsResponse({
+        success: false,
+        error: 'Erreur sauvegarde subscription'
+      }, { status: 500 })
+    }
+
+    return createCorsResponse({
+      success: true,
+      subscription: {
+        id: graphSubscription.id,
+        userEmail: email,
+        resource: graphSubscription.resource,
+        expiresAt: graphSubscription.expirationDateTime
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ Erreur handleCreateSubscription:', error)
+    return createCorsResponse({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }, { status: 500 })
+  }
+}
+
+/**
+ * Handler: Renouveler les subscriptions
+ */
+async function handleRenewSubscriptions(): Promise<Response> {
   try {
     console.log('🔄 Renouvellement des subscriptions')
 
+    const accessToken = await getApplicationToken()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    // Récupérer les subscriptions qui expirent dans les 6 prochaines heures
-    const expirationThreshold = new Date()
-    expirationThreshold.setHours(expirationThreshold.getHours() + 6)
+
+    // Récupérer les subscriptions à renouveler (expiration dans moins de 2h)
+    const twoHoursFromNow = new Date(Date.now() + (2 * 60 * 60 * 1000)).toISOString()
 
     const { data: subscriptions, error } = await supabase
       .from('graph_subscriptions')
       .select('*')
-      .eq('is_active', true)
-      .lt('expiration_datetime', expirationThreshold.toISOString())
-      .order('expiration_datetime', { ascending: true })
+      .eq('status', 'active')
+      .lt('expires_at', twoHoursFromNow)
 
     if (error) {
-      throw new Error(`Erreur récupération subscriptions: ${error.message}`)
+      console.error('❌ Erreur récupération subscriptions:', error)
+      return createCorsResponse({
+        success: false,
+        error: 'Erreur récupération subscriptions'
+      }, { status: 500 })
     }
 
-    console.log(`📋 ${subscriptions?.length || 0} subscriptions à renouveler`)
-
     if (!subscriptions || subscriptions.length === 0) {
+      console.log('📭 Aucune subscription à renouveler')
       return createCorsResponse({
         success: true,
         message: 'Aucune subscription à renouveler',
         renewed: 0
-      }, { status: 200 })
+      })
     }
 
-    // Récupérer le token Microsoft de l'utilisateur
-    const accessToken = await getUserMicrosoftToken(user.id)
-    if (!accessToken) {
-      return createCorsResponse({
-        error: 'Token Microsoft manquant',
-        message: 'Veuillez vous reconnecter à Microsoft dans les paramètres'
-      }, { status: 401 })
-    }
+    console.log(`🔄 ${subscriptions.length} subscription(s) à renouveler`)
 
-    let renewed = 0
-    let errors = 0
+    let renewedCount = 0
+    let errorCount = 0
 
+    // Renouveler chaque subscription
     for (const subscription of subscriptions) {
-      try {
-        console.log(`🔄 Renouvellement subscription: ${subscription.subscription_id}`)
+      const success = await renewGraphSubscription(accessToken, subscription.subscription_id)
 
-        // Nouvelle date d'expiration (3 jours)
-        const newExpirationDate = new Date()
-        newExpirationDate.setHours(newExpirationDate.getHours() + 71)
+      if (success) {
+        // Mettre à jour l'expiration dans Supabase
+        const newExpiration = new Date(Date.now() + (4230 * 60 * 1000)).toISOString()
 
-        // Renouveler via Microsoft Graph
-        const renewResponse = await fetch(`https://graph.microsoft.com/v1.0/subscriptions/${subscription.subscription_id}`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            expirationDateTime: newExpirationDate.toISOString()
-          })
-        })
-
-        if (!renewResponse.ok) {
-          console.error(`❌ Erreur renouvellement Graph ${subscription.subscription_id}:`, renewResponse.status)
-          
-          // Si la subscription n'existe plus, la marquer comme inactive
-          if (renewResponse.status === 404) {
-            await supabase
-              .from('graph_subscriptions')
-              .update({ is_active: false })
-              .eq('id', subscription.id)
-            console.log(`⚠️ Subscription ${subscription.subscription_id} marquée inactive (404)`)
-          }
-          
-          errors++
-          continue
-        }
-
-        // Mettre à jour en base de données
-        const { error: updateError } = await supabase
+        await supabase
           .from('graph_subscriptions')
           .update({
-            expiration_datetime: newExpirationDate.toISOString(),
-            last_renewal_at: new Date().toISOString(),
-            renewal_attempts: subscription.renewal_attempts + 1
+            expires_at: newExpiration,
+            updated_at: new Date().toISOString()
           })
           .eq('id', subscription.id)
 
-        if (updateError) {
-          console.error(`❌ Erreur mise à jour DB ${subscription.subscription_id}:`, updateError)
-          errors++
-          continue
-        }
+        renewedCount++
+      } else {
+        // Marquer comme échouée
+        await supabase
+          .from('graph_subscriptions')
+          .update({
+            status: 'error',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', subscription.id)
 
-        console.log(`✅ Subscription ${subscription.subscription_id} renouvelée jusqu'au ${newExpirationDate.toISOString()}`)
-        renewed++
-
-      } catch (error: unknown) {
-        console.error(`❌ Erreur renouvellement ${subscription.subscription_id}:`, error)
-        errors++
+        errorCount++
       }
     }
 
     return createCorsResponse({
       success: true,
-      message: 'Renouvellement terminé',
-      renewed,
-      errors,
+      renewed: renewedCount,
+      errors: errorCount,
       total: subscriptions.length
-    }, { status: 200 })
+    })
 
-  } catch (error: unknown) {
-    console.error('❌ Erreur renouvellement subscriptions:', error)
+  } catch (error) {
+    console.error('❌ Erreur handleRenewSubscriptions:', error)
     return createCorsResponse({
-      error: 'Erreur renouvellement subscriptions',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     }, { status: 500 })
   }
 }
 
-// ====================================================================================================
-// OBTENIR LE STATUT DES SUBSCRIPTIONS
-// ====================================================================================================
-async function handleGetStatus(_user: SupabaseUser): Promise<Response> {
+/**
+ * Handler: Lister les subscriptions
+ */
+async function handleListSubscriptions(): Promise<Response> {
   try {
-    console.log('📊 Récupération du statut des subscriptions')
+    console.log('📋 Liste des subscriptions')
 
+    const accessToken = await getApplicationToken()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    // Statistiques générales
-    const { data: stats } = await supabase
-      .from('graph_subscriptions')
-      .select('is_active, expiration_datetime')
 
-    const now = new Date()
-    const active = stats?.filter(s => s.is_active).length || 0
-    const expired = stats?.filter(s => s.is_active && new Date(s.expiration_datetime) < now).length || 0
-    const expiringIn6h = stats?.filter(s => {
-      const expiry = new Date(s.expiration_datetime)
-      const in6hours = new Date(now.getTime() + 6 * 60 * 60 * 1000)
-      return s.is_active && expiry < in6hours
-    }).length || 0
-
-    // Détails des subscriptions actives
-    const { data: activeSubscriptions } = await supabase
+    // Récupérer depuis Supabase
+    const { data: dbSubscriptions, error } = await supabase
       .from('graph_subscriptions')
       .select('*')
-      .eq('is_active', true)
-      .order('expiration_datetime', { ascending: false })
+      .order('created_at', { ascending: false })
 
-    // Formater la réponse pour le composant React
-    const formattedSubscriptions = activeSubscriptions?.map(sub => ({
-      id: sub.subscription_id,
-      resource: sub.resource,
-      expires_at: sub.expiration_datetime,
-      status: new Date(sub.expiration_datetime) > now ? 'active' : 'expired'
-    })) || []
+    if (error) {
+      console.error('❌ Erreur récupération subscriptions DB:', error)
+      return createCorsResponse({
+        success: false,
+        error: 'Erreur récupération subscriptions'
+      }, { status: 500 })
+    }
+
+    // Récupérer depuis Microsoft Graph
+    const graphSubscriptions = await listGraphSubscriptions(accessToken)
 
     return createCorsResponse({
-      active: active > 0,
-      count: active,
-      subscriptions: formattedSubscriptions,
-      lastUpdate: new Date().toISOString(),
-      statistics: {
-        total: stats?.length || 0,
-        active,
-        expired,
-        expiringIn6h
+      success: true,
+      database: dbSubscriptions || [],
+      graph: graphSubscriptions,
+      total: {
+        database: dbSubscriptions?.length || 0,
+        graph: graphSubscriptions.length
       }
-    }, { status: 200 })
+    })
 
-  } catch (error: unknown) {
-    console.error('❌ Erreur statut subscriptions:', error)
+  } catch (error) {
+    console.error('❌ Erreur handleListSubscriptions:', error)
     return createCorsResponse({
-      error: 'Erreur récupération statut',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     }, { status: 500 })
   }
 }
 
-// ====================================================================================================
-// NETTOYER LES SUBSCRIPTIONS INACTIVES
-// ====================================================================================================
-async function handleCleanupSubscriptions(user: SupabaseUser): Promise<Response> {
+/**
+ * Handler: Nettoyer les subscriptions
+ */
+async function handleCleanupSubscriptions(): Promise<Response> {
   try {
-    console.log('🧹 Nettoyage des subscriptions inactives')
+    console.log('🧹 Nettoyage des subscriptions')
 
+    const accessToken = await getApplicationToken()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    // Supprimer les subscriptions expirées depuis plus de 24h
-    const cleanupThreshold = new Date()
-    cleanupThreshold.setHours(cleanupThreshold.getHours() - 24)
+
+    // Récupérer les subscriptions expirées
+    const now = new Date().toISOString()
 
     const { data: expiredSubscriptions, error } = await supabase
       .from('graph_subscriptions')
       .select('*')
-      .or('is_active.eq.false,expiration_datetime.lt.' + cleanupThreshold.toISOString())
+      .lt('expires_at', now)
+      .neq('status', 'deleted')
 
     if (error) {
-      throw new Error(`Erreur récupération subscriptions expirées: ${error.message}`)
+      console.error('❌ Erreur récupération subscriptions expirées:', error)
+      return createCorsResponse({
+        success: false,
+        error: 'Erreur récupération subscriptions expirées'
+      }, { status: 500 })
     }
-
-    console.log(`📋 ${expiredSubscriptions?.length || 0} subscriptions à nettoyer`)
 
     if (!expiredSubscriptions || expiredSubscriptions.length === 0) {
+      console.log('📭 Aucune subscription expirée à nettoyer')
       return createCorsResponse({
         success: true,
-        message: 'Aucune subscription à nettoyer',
+        message: 'Aucune subscription expirée',
         cleaned: 0
-      }, { status: 200 })
+      })
     }
 
-    // Récupérer le token Microsoft de l'utilisateur pour supprimer les subscriptions
-    const accessToken = await getUserMicrosoftToken(user.id)
-    let cleaned = 0
+    console.log(`🧹 ${expiredSubscriptions.length} subscription(s) expirée(s) à nettoyer`)
 
+    let cleanedCount = 0
+
+    // Nettoyer chaque subscription expirée
     for (const subscription of expiredSubscriptions) {
-      try {
-        // Supprimer de Microsoft Graph si le token est disponible
-        if (accessToken) {
-          await deleteGraphSubscription(accessToken, subscription.subscription_id)
-        }
+      // Tenter de la supprimer de Graph (peut échouer si déjà supprimée)
+      await deleteGraphSubscription(accessToken, subscription.subscription_id)
 
-        // Supprimer de la base de données
-        const { error: deleteError } = await supabase
-          .from('graph_subscriptions')
-          .delete()
-          .eq('id', subscription.id)
+      // Marquer comme supprimée dans la DB
+      await supabase
+        .from('graph_subscriptions')
+        .update({
+          status: 'deleted',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', subscription.id)
 
-        if (deleteError) {
-          console.error(`❌ Erreur suppression DB ${subscription.subscription_id}:`, deleteError)
-          continue
-        }
-
-        console.log(`✅ Subscription ${subscription.subscription_id} nettoyée`)
-        cleaned++
-
-      } catch (error: unknown) {
-        console.error(`❌ Erreur nettoyage ${subscription.subscription_id}:`, error)
-      }
+      cleanedCount++
     }
 
     return createCorsResponse({
       success: true,
-      message: 'Nettoyage terminé',
-      cleaned,
+      cleaned: cleanedCount,
       total: expiredSubscriptions.length
-    }, { status: 200 })
+    })
 
-  } catch (error: unknown) {
-    console.error('❌ Erreur nettoyage subscriptions:', error)
+  } catch (error) {
+    console.error('❌ Erreur handleCleanupSubscriptions:', error)
     return createCorsResponse({
-      error: 'Erreur nettoyage subscriptions',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     }, { status: 500 })
   }
 }
 
 // ====================================================================================================
-// UTILITAIRES
+// HANDLER PRINCIPAL
 // ====================================================================================================
 
-// ====================================================================================================
-// GESTION DES TOKENS UTILISATEUR MICROSOFT
-// ====================================================================================================
+serve(async (req: Request): Promise<Response> => {
+  // Gestion CORS
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
 
-/**
- * Récupère le token Microsoft d'un utilisateur (déchiffré et vérifié)
- */
-async function getUserMicrosoftToken(userId: string): Promise<string | null> {
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    // Récupérer les tokens chiffrés de l'utilisateur
-    const { data: tokenData, error } = await supabase
-      .from('microsoft_tokens')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
+    console.log(`📊 Subscription Manager: ${req.method} ${req.url}`)
 
-    if (error || !tokenData) {
-      console.log(`📭 Pas de tokens Microsoft pour user ${userId}`)
-      return null
-    }
+    const url = new URL(req.url)
+    const action = url.searchParams.get('action') || 'list'
 
-    // Vérifier si le token est expiré
-    if (isTokenExpired(tokenData.expires_at)) {
-      console.log(`⏰ Token Microsoft expiré pour user ${userId}`)
-      
-      // Essayer de renouveler automatiquement
-      const refreshedToken = await refreshUserMicrosoftToken(userId, tokenData)
-      return refreshedToken
-    }
-
-    console.log(`✅ Token Microsoft valide pour user ${userId}`)
-    
-    // Décrypter les tokens avec la même méthode que le frontend
-    console.log('🔓 Déchiffrement du token d\'accès...')
-    const serverSalt = `${userId}-encryption-salt-2024`
-    const decryptedTokens = await decryptUserTokens({
-      accessTokenEncrypted: tokenData.access_token_encrypted,
-      refreshTokenEncrypted: tokenData.refresh_token_encrypted,
-      nonce: tokenData.token_nonce,
-      expiresAt: tokenData.expires_at,
-      scope: tokenData.scope || ''
-    }, userId, serverSalt)
-
-    if (!decryptedTokens) {
-      console.error('❌ Impossible de déchiffrer les tokens')
-      return null
-    }
-
-    console.log('✅ Token d\'accès déchiffré avec succès')
-    return decryptedTokens.accessToken
-
-  } catch (error: unknown) {
-    console.error(`❌ Erreur récupération token user ${userId}:`, error)
-    return null
-  }
-}
-
-/**
- * Renouvelle automatiquement le token Microsoft d'un utilisateur
- */
-async function refreshUserMicrosoftToken(userId: string, tokenData: MicrosoftTokenData): Promise<string | null> {
-  try {
-    console.log(`🔄 Tentative de renouvellement token pour user ${userId}`)
-    
-    // TODO: Implémenter le renouvellement automatique
-    // 1. Déchiffrer le refresh token
-    // 2. Appeler Microsoft pour renouveler
-    // 3. Re-chiffrer et sauvegarder les nouveaux tokens
-    
-    // Pour l'instant, marquer comme nécessitant une reconnexion
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    await supabase
-      .from('microsoft_tokens')
-      .update({ 
-        refresh_attempts: tokenData.refresh_attempts + 1,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-
-    console.log(`⚠️ Token non renouvelé - reconnexion requise pour user ${userId}`)
-    return null
-
-  } catch (error: unknown) {
-    console.error(`❌ Erreur renouvellement token user ${userId}:`, error)
-    return null
-  }
-}
-
-// Supprimer une subscription de Microsoft Graph
-async function deleteGraphSubscription(accessToken: string, subscriptionId: string): Promise<void> {
-  try {
-    const response = await fetch(`https://graph.microsoft.com/v1.0/subscriptions/${subscriptionId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+    // Support du body pour les appels POST
+    let bodyData: Record<string, unknown> = {}
+    if (req.method === 'POST') {
+      try {
+        bodyData = await req.json()
+      } catch {
+        // Pas de body JSON
       }
-    })
-
-    if (response.ok || response.status === 404) {
-      console.log(`✅ Subscription Graph ${subscriptionId} supprimée`)
-    } else {
-      console.error(`❌ Erreur suppression Graph ${subscriptionId}:`, response.status)
     }
-  } catch (error: unknown) {
-    console.error(`❌ Erreur suppression subscription ${subscriptionId}:`, error)
-  }
-}
 
-// ====================================================================================================
-// UTILITAIRES SUPABASE
-// ====================================================================================================
+    switch (action) {
+      case 'create':
+        return await handleCreateSubscription(bodyData.userEmail as string)
 
-/**
- * Récupère l'utilisateur Supabase depuis le token d'autorisation
- */
-async function getSupabaseUser(authHeader: string): Promise<SupabaseUser | null> {
-  try {
-    const token = authHeader.replace('Bearer ', '')
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    
-    if (error || !user) {
-      console.error('❌ Utilisateur Supabase non valide:', error)
-      return null
+      case 'renew':
+        return await handleRenewSubscriptions()
+
+      case 'list':
+        return await handleListSubscriptions()
+
+      case 'cleanup':
+        return await handleCleanupSubscriptions()
+
+      case 'status':
+        return createCorsResponse({
+          success: true,
+          version: '2.0',
+          architecture: 'application-permissions',
+          timestamp: new Date().toISOString()
+        })
+
+      default:
+        return createCorsResponse({
+          success: false,
+          error: `Action non supportée: ${action}`,
+          availableActions: ['create', 'renew', 'list', 'cleanup', 'status']
+        }, { status: 400 })
     }
-    
-    return user as unknown as SupabaseUser
+
   } catch (error) {
-    console.error('❌ Erreur vérification utilisateur:', error)
-    return null
+    console.error('❌ Erreur Subscription Manager:', error)
+    return createCorsResponse({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }, { status: 500 })
   }
-}
+})
 
-// ====================================================================================================
-// FONCTIONS DE CHIFFREMENT COMPATIBLES AVEC LE FRONTEND
-// ====================================================================================================
-
-// Types pour les tokens chiffrés (compatibles avec frontend)
-interface EncryptedTokens {
-  accessTokenEncrypted: string
-  refreshTokenEncrypted: string
-  nonce: string
-  expiresAt: string
-  scope: string
-}
-
-interface MicrosoftTokens {
-  accessToken: string
-  refreshToken: string
-  expiresAt: string
-  scope: string
-}
-
-/**
- * Dérive une clé de chiffrement unique pour chaque utilisateur (compatible frontend)
- */
-async function deriveEncryptionKey(userId: string, serverSalt: string): Promise<ArrayBuffer> {
-  if (typeof crypto === 'undefined' || !crypto.subtle) {
-    throw new Error('Web Crypto API not available')
-  }
-
-  const userIdBuffer = new TextEncoder().encode(userId)
-  const saltBuffer = new TextEncoder().encode(serverSalt)
-
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    userIdBuffer,
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits']
-  )
-
-  const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: saltBuffer,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    256
-  )
-
-  return derivedBits
-}
-
-/**
- * Déchiffre les tokens depuis le stockage sécurisé (compatible frontend)
- */
-async function decryptUserTokens(
-  encryptedTokens: EncryptedTokens,
-  userId: string,
-  serverSalt: string
-): Promise<MicrosoftTokens | null> {
-  try {
-    if (typeof crypto === 'undefined' || !crypto.subtle) {
-      throw new Error('Web Crypto API not available')
-    }
-
-    const encryptionKeyBytes = await deriveEncryptionKey(userId, serverSalt)
-    
-    const encryptionKey = await crypto.subtle.importKey(
-      'raw',
-      encryptionKeyBytes,
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt']
-    )
-    
-    const accessTokenEncrypted = new Uint8Array(base64ToArrayBufferCompat(encryptedTokens.accessTokenEncrypted))
-    const refreshTokenEncrypted = new Uint8Array(base64ToArrayBufferCompat(encryptedTokens.refreshTokenEncrypted))
-    const nonce = new Uint8Array(base64ToArrayBufferCompat(encryptedTokens.nonce))
-    
-    const accessTokenBytes = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce },
-      encryptionKey,
-      accessTokenEncrypted
-    )
-    
-    const refreshTokenBytes = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce },
-      encryptionKey,
-      refreshTokenEncrypted
-    )
-    
-    const accessToken = new TextDecoder().decode(accessTokenBytes)
-    const refreshToken = new TextDecoder().decode(refreshTokenBytes)
-    
-    return {
-      accessToken,
-      refreshToken,
-      expiresAt: encryptedTokens.expiresAt,
-      scope: encryptedTokens.scope
-    }
-  } catch (error) {
-    console.error('❌ Impossible de déchiffrer les tokens - clé invalide ou données corrompues:', error)
-    return null
-  }
-}
-
-/**
- * Convertit une string base64 en ArrayBuffer
- */
-function base64ToArrayBufferCompat(base64: string): ArrayBuffer {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes.buffer
-}
-
-/**
- * Vérifie si un token est expiré
- */
-function isTokenExpired(expiresAt: string): boolean {
-  return new Date(expiresAt) <= new Date()
-}
-
-console.log('🚀 Subscription Manager v2.2 ready - Dual Subscriptions (Inbox + Sent Items)')
+console.log('🚀 Subscription Manager v2.0 ready - Application permissions architecture')

@@ -35,15 +35,15 @@ interface UpdateUserRequest {
   status?: 'active' | 'inactive'
 }
 
-interface ApiResponse {
+interface ApiResponse<T = unknown> {
   success: boolean
-  data?: any
+  data?: T
   error?: string
   message?: string
 }
 
 // Fonction utilitaire pour les réponses
-function jsonResponse(data: ApiResponse, status = 200): Response {
+function jsonResponse<T>(data: ApiResponse<T>, status = 200): Response {
   return new Response(
     JSON.stringify(data),
     {
@@ -273,9 +273,7 @@ serve(async (req: Request) => {
         console.error('Erreur création auth.users:', {
           error: authError,
           message: authError?.message,
-          code: authError?.code,
-          details: authError?.details,
-          hint: authError?.hint
+          code: authError?.code
         })
         return jsonResponse(
           { success: false, error: `Erreur Auth: ${authError?.message || 'Utilisateur non créé'}` },

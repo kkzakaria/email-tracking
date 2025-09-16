@@ -1,93 +1,366 @@
 // ====================================================================================================
-// EMAIL HISTORY SYNC - Utilitaire de récupération des emails des 7 derniers jours
+// EMAIL HISTORY SYNC v3.3 - Support des Dossiers Personnalisés
 // ====================================================================================================
 // Edge Function pour synchroniser les emails via Microsoft Graph API
-// Récupère les emails des 7 derniers jours et met à jour le tracking automatiquement
-// Utilise le système de tokens chiffrés E2E
+// Utilise les RPC log_sent_message et log_received_message avec triggers automatiques
+// Version: 3.3 - Scanner TOUS les dossiers (système + personnalisés)
 // ====================================================================================================
 
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+/// <reference lib="deno.ns" />
 
-// Types Supabase User
-interface SupabaseUser {
-  id: string
-  email?: string
-  [key: string]: unknown
-}
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { GraphMessage, SyncStats } from '../_shared/types.ts'
 
-// Types pour tokens chiffrés
-interface EncryptedTokens {
-  accessTokenEncrypted: string
-  refreshTokenEncrypted: string
-  nonce: string
-  expiresAt: string
-  scope: string
-}
+// Configuration
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-interface MicrosoftTokens {
-  accessToken: string
-  refreshToken: string
-  expiresAt: string
-  scope: string
-}
-
-interface MicrosoftTokenData {
-  id: string
-  user_id: string
-  access_token_encrypted: string
-  refresh_token_encrypted: string
-  token_nonce: string
-  expires_at: string
-  scope: string
-  created_at: string
-  updated_at: string
-  last_refreshed_at?: string
-  refresh_attempts: number
-}
-
-interface GraphMessage {
-  id: string
-  internetMessageId?: string
-  conversationId?: string
-  subject?: string
-  from?: {
-    emailAddress: {
-      address: string
-      name?: string
-    }
+/**
+ * Obtenir un token d'application via app-token-manager
+ */
+async function getApplicationToken(): Promise<string> {
+  const baseUrl = Deno.env.get('SUPABASE_URL')
+  if (!baseUrl) {
+    throw new Error('SUPABASE_URL non configurée')
   }
-  toRecipients?: Array<{
-    emailAddress: {
-      address: string
-      name?: string
+
+  const tokenManagerUrl = `${baseUrl}/functions/v1/app-token-manager?action=get-token`
+
+  const response = await fetch(tokenManagerUrl, {
+    headers: {
+      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
     }
-  }>
-  receivedDateTime?: string
-  sentDateTime?: string
-  bodyPreview?: string
-  isDraft?: boolean
-  isRead?: boolean
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('❌ Erreur obtention token application:', error)
+    throw new Error('Impossible d\'obtenir le token d\'application')
+  }
+
+  const data = await response.json()
+  if (!data.success) {
+    throw new Error(data.error || 'Erreur token manager')
+  }
+
+  console.log('✅ Token d\'application obtenu via app-token-manager')
+  return data.data.access_token
 }
 
-interface GraphResponse {
-  value: GraphMessage[]
-  '@odata.nextLink'?: string
+// ====================================================================================================
+// RÉCUPÉRATION DES DOSSIERS
+// ====================================================================================================
+
+/**
+ * Récupérer la liste de tous les dossiers email de l'utilisateur
+ */
+async function getAllMailFolders(accessToken: string, userEmail: string): Promise<any[]> {
+  console.log('📁 Récupération de tous les dossiers...')
+
+  try {
+    const response = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${userEmail}/mailFolders?$top=100`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erreur récupération dossiers:', response.status, errorText)
+      return []
+    }
+
+    const data = await response.json()
+    const folders = data.value || []
+
+    console.log(`📁 ${folders.length} dossier(s) trouvé(s):`)
+    folders.forEach((folder: any) => {
+      console.log(`   📂 ${folder.displayName} (${folder.totalItemCount} emails)`)
+    })
+
+    return folders
+
+  } catch (error) {
+    console.error('❌ Erreur getAllMailFolders:', error)
+    return []
+  }
 }
 
-interface SyncResult {
-  sentEmails: number
-  receivedEmails: number
-  trackedEmails: number
-  repliesDetected: number
-  errors: string[]
+// ====================================================================================================
+// SYNCHRONISATION PRINCIPALE
+// ====================================================================================================
+
+/**
+ * Synchroniser les emails des 7 derniers jours avec support des dossiers personnalisés
+ */
+async function syncEmailHistory(days: number = 7): Promise<SyncStats> {
+  console.log(`🔄 Début de la synchronisation historique des emails (${days} derniers jours)`)
+  console.log(`📌 VERSION 3.3 - Support des dossiers personnalisés`)
+
+  const accessToken = await getApplicationToken()
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+  // Calculer la période de synchronisation
+  const now = new Date()
+  const pastDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000))
+  const dateFilter = pastDate.toISOString()
+
+  console.log(`📅 Synchronisation depuis: ${pastDate.toLocaleDateString('fr-FR')}`)
+
+  const stats: SyncStats = {
+    totalMessages: 0,
+    newTrackedEmails: 0,
+    updatedEmails: 0,
+    errors: 0,
+    syncedPeriod: `${pastDate.toLocaleDateString('fr-FR')} - ${now.toLocaleDateString('fr-FR')}`
+  }
+
+  try {
+    const serviceEmail = 'service-exploitation@karta-transit.ci'
+
+    // 1. Récupérer tous les dossiers
+    const folders = await getAllMailFolders(accessToken, serviceEmail)
+
+    // 2. Synchroniser les emails envoyés (SentItems)
+    console.log('📤 Synchronisation des emails envoyés...')
+    const sentStats = await syncSentEmails(accessToken, supabase, serviceEmail, dateFilter)
+    stats.totalMessages += sentStats.totalMessages || 0
+    stats.newTrackedEmails += sentStats.newTrackedEmails || 0
+    stats.errors += sentStats.errors || 0
+
+    // 3. Synchroniser les emails reçus de TOUS les dossiers
+    console.log('📬 Synchronisation des emails reçus de TOUS les dossiers...')
+
+    // Dossiers à synchroniser pour les emails reçus
+    const foldersToSync = folders.filter(f => {
+      // Exclure les dossiers d'envoi et brouillons
+      const excludedFolders = ['Sent Items', 'Éléments envoyés', 'Drafts', 'Brouillons', 'Outbox', 'Boîte d\'envoi']
+      return !excludedFolders.includes(f.displayName) && f.totalItemCount > 0
+    })
+
+    console.log(`📂 ${foldersToSync.length} dossier(s) à scanner pour les emails reçus`)
+
+    for (const folder of foldersToSync) {
+      console.log(`   📁 Scan du dossier: ${folder.displayName} (${folder.totalItemCount} emails)`)
+      const folderStats = await syncReceivedEmailsFromFolder(
+        accessToken,
+        supabase,
+        serviceEmail,
+        dateFilter,
+        folder.id,
+        folder.displayName
+      )
+      stats.totalMessages += folderStats.totalMessages || 0
+      stats.updatedEmails += folderStats.updatedEmails || 0
+      stats.errors += folderStats.errors || 0
+    }
+
+    console.log(`✅ Synchronisation terminée:`)
+    console.log(`   - Messages traités: ${stats.totalMessages}`)
+    console.log(`   - Nouveaux trackings: ${stats.newTrackedEmails}`)
+    console.log(`   - Emails mis à jour: ${stats.updatedEmails}`)
+    console.log(`   - Erreurs: ${stats.errors}`)
+
+    return stats
+
+  } catch (error) {
+    console.error('❌ Erreur synchronisation:', error)
+    stats.errors++
+    return stats
+  }
 }
 
-Deno.serve(async (req: Request) => {
-  // CORS headers
+/**
+ * Synchroniser les emails envoyés via log_sent_message (déclenche trigger detect_sent_emails)
+ */
+async function syncSentEmails(
+  accessToken: string,
+  supabase: any,
+  userEmail: string,
+  dateFilter: string
+): Promise<Partial<SyncStats>> {
+  const stats = { totalMessages: 0, newTrackedEmails: 0, errors: 0 }
+
+  try {
+    // Récupérer les emails du dossier SentItems
+    const url = `https://graph.microsoft.com/v1.0/users/${userEmail}/mailFolders/sentitems/messages?$filter=sentDateTime ge ${dateFilter}&$orderby=sentDateTime desc&$top=500`
+
+    console.log(`📡 Appel API: ${url}`)
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erreur récupération emails envoyés:', response.status, errorText)
+      stats.errors++
+      return stats
+    }
+
+    const data = await response.json()
+    const messages: GraphMessage[] = data.value || []
+
+    console.log(`📤 ${messages.length} email(s) envoyé(s) trouvé(s)`)
+    stats.totalMessages = messages.length
+
+    // Traiter chaque message envoyé via le trigger log_sent_message
+    for (const message of messages) {
+      try {
+        const recipientEmail = message.toRecipients?.[0]?.emailAddress?.address
+
+        if (!recipientEmail || !message.subject) {
+          console.log(`⚠️ Email incomplet ignoré: ${message.id}`)
+          continue
+        }
+
+        // Utiliser log_sent_message qui déclenche automatiquement le trigger detect_sent_emails
+        const { data: messageId, error: insertError } = await supabase
+          .rpc('log_sent_message', {
+            p_graph_message_id: message.id,
+            p_internet_message_id: message.internetMessageId || null,
+            p_conversation_id: message.conversationId || null,
+            p_subject: message.subject || null,
+            p_from_email: message.from?.emailAddress?.address || userEmail,
+            p_to_email: recipientEmail,
+            p_body_preview: message.bodyPreview?.substring(0, 500) || null,
+            p_sent_at: message.sentDateTime || null
+          })
+
+        if (insertError) {
+          console.error('❌ Erreur log_sent_message:', insertError)
+          stats.errors++
+        } else {
+          stats.newTrackedEmails++
+          console.log(`✅ Email envoyé traité: ${message.subject}`)
+        }
+
+      } catch (error) {
+        console.error('❌ Erreur traitement message envoyé:', error)
+        stats.errors++
+      }
+    }
+
+    return stats
+
+  } catch (error) {
+    console.error('❌ Erreur syncSentEmails:', error)
+    stats.errors++
+    return stats
+  }
+}
+
+/**
+ * Synchroniser les emails reçus d'un dossier spécifique
+ */
+async function syncReceivedEmailsFromFolder(
+  accessToken: string,
+  supabase: any,
+  userEmail: string,
+  dateFilter: string,
+  folderId: string,
+  folderName: string
+): Promise<Partial<SyncStats>> {
+  const stats = { totalMessages: 0, updatedEmails: 0, errors: 0 }
+
+  try {
+    // Récupérer les emails du dossier spécifique
+    const url = `https://graph.microsoft.com/v1.0/users/${userEmail}/mailFolders/${folderId}/messages?$filter=receivedDateTime ge ${dateFilter}&$orderby=receivedDateTime desc&$top=500`
+
+    console.log(`      📡 Scan: ${folderName}`)
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`      ❌ Erreur récupération emails de ${folderName}:`, response.status, errorText)
+      stats.errors++
+      return stats
+    }
+
+    const data = await response.json()
+    const messages: GraphMessage[] = data.value || []
+
+    if (messages.length > 0) {
+      console.log(`      📬 ${messages.length} email(s) trouvé(s) dans ${folderName}`)
+      stats.totalMessages = messages.length
+
+      // Traiter chaque message reçu via le trigger log_received_message
+      for (const message of messages) {
+        try {
+          const senderEmail = message.from?.emailAddress?.address
+
+          if (!senderEmail || !message.subject) {
+            continue
+          }
+
+          // Skip les emails internes (envoyés par nous-mêmes)
+          if (senderEmail.includes('karta-transit.ci')) {
+            continue
+          }
+
+          // Utiliser log_received_message qui déclenche automatiquement le trigger detect_email_replies
+          const { data: messageId, error: insertError } = await supabase
+            .rpc('log_received_message', {
+              p_graph_message_id: message.id,
+              p_internet_message_id: message.internetMessageId || null,
+              p_conversation_id: message.conversationId || null,
+              p_subject: message.subject || null,
+              p_from_email: senderEmail,
+              p_to_email: message.toRecipients?.[0]?.emailAddress?.address || userEmail,
+              p_body_preview: message.bodyPreview?.substring(0, 500) || null,
+              p_received_at: message.receivedDateTime || null
+            })
+
+          if (insertError) {
+            console.error(`      ❌ Erreur log_received_message:`, insertError)
+            stats.errors++
+          } else {
+            stats.updatedEmails++
+          }
+
+        } catch (error) {
+          console.error(`      ❌ Erreur traitement message:`, error)
+          stats.errors++
+        }
+      }
+
+      if (stats.updatedEmails > 0) {
+        console.log(`      ✅ ${stats.updatedEmails} réponse(s) détectée(s) dans ${folderName}`)
+      }
+    }
+
+    return stats
+
+  } catch (error) {
+    console.error(`❌ Erreur syncReceivedEmailsFromFolder ${folderName}:`, error)
+    stats.errors++
+    return stats
+  }
+}
+
+// ====================================================================================================
+// HANDLER PRINCIPAL
+// ====================================================================================================
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+serve(async (req: Request) => {
+  // Headers CORS
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   }
 
   if (req.method === 'OPTIONS') {
@@ -95,424 +368,43 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
+    console.log('🚀 Email History Sync v3.3 - Support Dossiers Personnalisés')
 
-    // Vérifier l'authentification utilisateur
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Authorization header manquant. Veuillez vous authentifier.')
-    }
+    // Paramètres optionnels
+    const url = new URL(req.url)
+    const days = parseInt(url.searchParams.get('days') || '7')
 
-    // Récupérer l'utilisateur Supabase
-    const user = await getSupabaseUser(authHeader, supabaseClient)
-    if (!user) {
-      throw new Error('Utilisateur non authentifié. Token Supabase invalide.')
-    }
+    // Lancer la synchronisation
+    const stats = await syncEmailHistory(days)
 
-    console.log(`🔐 Email history sync pour user: ${user.id}`)
-
-    // Récupérer le token Microsoft déchiffré de l'utilisateur
-    const accessToken = await getUserMicrosoftToken(user.id, supabaseClient)
-    if (!accessToken) {
-      throw new Error('Token Microsoft Graph manquant ou expiré. Veuillez vous reconnecter à Microsoft dans les paramètres.')
-    }
-
-    console.log('✅ Token Microsoft récupéré et déchiffré avec succès')
-
-    // Calculate date range (7 days ago)
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const dateFilter = sevenDaysAgo.toISOString()
-
-    console.log(`Starting email sync for emails since ${dateFilter}`)
-
-    const result: SyncResult = {
-      sentEmails: 0,
-      receivedEmails: 0,
-      trackedEmails: 0,
-      repliesDetected: 0,
-      errors: []
-    }
-
-    // ====================================================================================================
-    // 1. Récupérer les emails ENVOYÉS des 7 derniers jours
-    // ====================================================================================================
-    try {
-      console.log('Fetching sent emails from Microsoft Graph...')
-      const sentEmailsUrl = `https://graph.microsoft.com/v1.0/me/mailFolders/SentItems/messages?$filter=sentDateTime ge ${dateFilter}&$select=id,internetMessageId,conversationId,subject,from,toRecipients,sentDateTime,bodyPreview&$top=999`
-      
-      const sentResponse = await fetch(sentEmailsUrl, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!sentResponse.ok) {
-        throw new Error(`Microsoft Graph API error for sent emails: ${sentResponse.status} ${sentResponse.statusText}`)
-      }
-
-      const sentData: GraphResponse = await sentResponse.json()
-      console.log(`Found ${sentData.value.length} sent emails`)
-
-      // Traiter chaque email envoyé
-      for (const message of sentData.value) {
-        if (message.isDraft) continue // Ignorer les brouillons
-
-        const toEmail = message.toRecipients?.[0]?.emailAddress?.address
-        const fromEmail = message.from?.emailAddress?.address
-
-        if (toEmail && fromEmail) {
-          // Utiliser la fonction log_sent_message qui déclenche l'auto-tracking
-          const { error } = await supabaseClient.rpc('log_sent_message', {
-            p_graph_message_id: message.id,
-            p_internet_message_id: message.internetMessageId || null,
-            p_conversation_id: message.conversationId || null,
-            p_subject: message.subject || null,
-            p_from_email: fromEmail,
-            p_to_email: toEmail,
-            p_body_preview: message.bodyPreview || null,
-            p_sent_at: message.sentDateTime || null
-          })
-
-          if (error) {
-            console.error(`Error logging sent message ${message.id}:`, error)
-            result.errors.push(`Sent email ${message.id}: ${error.message}`)
-          } else {
-            result.sentEmails++
-            console.log(`Logged sent email: ${message.subject} to ${toEmail}`)
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching sent emails:', error)
-      result.errors.push(`Sent emails fetch: ${error.message}`)
-    }
-
-    // ====================================================================================================
-    // 2. Récupérer les emails REÇUS des 7 derniers jours
-    // ====================================================================================================
-    try {
-      console.log('Fetching received emails from Microsoft Graph...')
-      const receivedEmailsUrl = `https://graph.microsoft.com/v1.0/me/mailFolders/Inbox/messages?$filter=receivedDateTime ge ${dateFilter}&$select=id,internetMessageId,conversationId,subject,from,toRecipients,receivedDateTime,bodyPreview&$top=999`
-      
-      const receivedResponse = await fetch(receivedEmailsUrl, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!receivedResponse.ok) {
-        throw new Error(`Microsoft Graph API error for received emails: ${receivedResponse.status} ${receivedResponse.statusText}`)
-      }
-
-      const receivedData: GraphResponse = await receivedResponse.json()
-      console.log(`Found ${receivedData.value.length} received emails`)
-
-      // Traiter chaque email reçu
-      for (const message of receivedData.value) {
-        const fromEmail = message.from?.emailAddress?.address
-        const toEmail = message.toRecipients?.[0]?.emailAddress?.address
-
-        if (fromEmail) {
-          // Utiliser la fonction log_received_message qui déclenche la détection automatique des réponses
-          const { error } = await supabaseClient.rpc('log_received_message', {
-            p_graph_message_id: message.id,
-            p_internet_message_id: message.internetMessageId || null,
-            p_conversation_id: message.conversationId || null,
-            p_subject: message.subject || null,
-            p_from_email: fromEmail,
-            p_to_email: toEmail || null,
-            p_body_preview: message.bodyPreview || null,
-            p_received_at: message.receivedDateTime || null
-          })
-
-          if (error) {
-            console.error(`Error logging received message ${message.id}:`, error)
-            result.errors.push(`Received email ${message.id}: ${error.message}`)
-          } else {
-            result.receivedEmails++
-            console.log(`Logged received email: ${message.subject} from ${fromEmail}`)
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching received emails:', error)
-      result.errors.push(`Received emails fetch: ${error.message}`)
-    }
-
-    // ====================================================================================================
-    // 3. Obtenir les statistiques après synchronisation
-    // ====================================================================================================
-    try {
-      // Compter les emails trackés créés dans les dernières heures
-      const { data: recentTracked } = await supabaseClient
-        .from('tracked_emails')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()) // 2 dernières heures
-
-      result.trackedEmails = recentTracked || 0
-
-      // Compter les réponses détectées récemment
-      const { data: recentReplies } = await supabaseClient
-        .from('tracked_emails')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'REPLIED')
-        .gte('reply_received_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()) // 2 dernières heures
-
-      result.repliesDetected = recentReplies || 0
-
-    } catch (error) {
-      console.error('Error getting stats:', error)
-      result.errors.push(`Stats calculation: ${error.message}`)
-    }
-
-    console.log('Email history sync completed:', result)
-
-    return new Response(JSON.stringify({
+    // Réponse avec statistiques
+    const response = {
       success: true,
+      stats,
       timestamp: new Date().toISOString(),
-      result
-    }), {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
+      version: '3.3',
+      architecture: 'trigger-based-all-folders'
+    }
+
+    return new Response(JSON.stringify(response, null, 2), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
-    console.error('Email history sync failed:', error)
-    
-    return new Response(JSON.stringify({
+    console.error('❌ Erreur handler principal:', error)
+
+    const errorResponse = {
       success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    }), {
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+      timestamp: new Date().toISOString(),
+      version: '3.3'
+    }
+
+    return new Response(JSON.stringify(errorResponse, null, 2), {
       status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 })
 
-// ====================================================================================================
-// UTILITAIRES - Gestion des utilisateurs et tokens chiffrés
-// ====================================================================================================
-
-/**
- * Récupère l'utilisateur Supabase depuis le token d'autorisation
- */
-async function getSupabaseUser(authHeader: string, supabaseClient: ReturnType<typeof createClient>): Promise<SupabaseUser | null> {
-  try {
-    const token = authHeader.replace('Bearer ', '')
-    
-    const { data: { user }, error } = await supabaseClient.auth.getUser(token)
-    
-    if (error || !user) {
-      console.error('❌ Utilisateur Supabase non valide:', error)
-      return null
-    }
-    
-    return user as unknown as SupabaseUser
-  } catch (error) {
-    console.error('❌ Erreur vérification utilisateur:', error)
-    return null
-  }
-}
-
-/**
- * Récupère le token Microsoft d'un utilisateur (déchiffré et vérifié)
- * Utilise le même système de chiffrement que microsoft-auth et subscription-manager
- */
-async function getUserMicrosoftToken(userId: string, supabaseClient: ReturnType<typeof createClient>): Promise<string | null> {
-  try {
-    // Récupérer les tokens chiffrés de l'utilisateur
-    const { data: tokenData, error } = await supabaseClient
-      .from('microsoft_tokens')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-
-    if (error || !tokenData) {
-      console.log(`📭 Pas de tokens Microsoft pour user ${userId}`)
-      return null
-    }
-
-    // Vérifier si le token est expiré
-    if (isTokenExpired(tokenData.expires_at)) {
-      console.log(`⏰ Token Microsoft expiré pour user ${userId}`)
-      return null
-    }
-
-    console.log(`✅ Token Microsoft valide pour user ${userId}`)
-    
-    // Décrypter les tokens avec la même méthode que les autres Edge Functions
-    console.log('🔓 Déchiffrement du token d\'accès...')
-    const serverSalt = `${userId}-encryption-salt-2024`
-    const decryptedTokens = await decryptUserTokens({
-      accessTokenEncrypted: tokenData.access_token_encrypted,
-      refreshTokenEncrypted: tokenData.refresh_token_encrypted,
-      nonce: tokenData.token_nonce,
-      expiresAt: tokenData.expires_at,
-      scope: tokenData.scope || ''
-    }, userId, serverSalt)
-
-    if (!decryptedTokens) {
-      console.error('❌ Impossible de déchiffrer les tokens')
-      return null
-    }
-
-    console.log('✅ Token d\'accès déchiffré avec succès')
-    return decryptedTokens.accessToken
-
-  } catch (error: unknown) {
-    console.error(`❌ Erreur récupération token user ${userId}:`, error)
-    return null
-  }
-}
-
-// ====================================================================================================
-// FONCTIONS DE CHIFFREMENT COMPATIBLES AVEC LE FRONTEND
-// ====================================================================================================
-
-/**
- * Dérive une clé de chiffrement unique pour chaque utilisateur (compatible frontend)
- */
-async function deriveEncryptionKey(userId: string, serverSalt: string): Promise<ArrayBuffer> {
-  if (typeof crypto === 'undefined' || !crypto.subtle) {
-    throw new Error('Web Crypto API not available')
-  }
-
-  const userIdBuffer = new TextEncoder().encode(userId)
-  const saltBuffer = new TextEncoder().encode(serverSalt)
-
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    userIdBuffer,
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits']
-  )
-
-  const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: saltBuffer,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    256
-  )
-
-  return derivedBits
-}
-
-/**
- * Déchiffre les tokens depuis le stockage sécurisé (compatible frontend)
- */
-async function decryptUserTokens(
-  encryptedTokens: EncryptedTokens,
-  userId: string,
-  serverSalt: string
-): Promise<MicrosoftTokens | null> {
-  try {
-    if (typeof crypto === 'undefined' || !crypto.subtle) {
-      throw new Error('Web Crypto API not available')
-    }
-
-    const encryptionKeyBytes = await deriveEncryptionKey(userId, serverSalt)
-    
-    const encryptionKey = await crypto.subtle.importKey(
-      'raw',
-      encryptionKeyBytes,
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt']
-    )
-    
-    const accessTokenEncrypted = new Uint8Array(base64ToArrayBuffer(encryptedTokens.accessTokenEncrypted))
-    const refreshTokenEncrypted = new Uint8Array(base64ToArrayBuffer(encryptedTokens.refreshTokenEncrypted))
-    const nonce = new Uint8Array(base64ToArrayBuffer(encryptedTokens.nonce))
-    
-    const accessTokenBytes = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce },
-      encryptionKey,
-      accessTokenEncrypted
-    )
-    
-    const refreshTokenBytes = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce },
-      encryptionKey,
-      refreshTokenEncrypted
-    )
-    
-    const accessToken = new TextDecoder().decode(accessTokenBytes)
-    const refreshToken = new TextDecoder().decode(refreshTokenBytes)
-    
-    return {
-      accessToken,
-      refreshToken,
-      expiresAt: encryptedTokens.expiresAt,
-      scope: encryptedTokens.scope
-    }
-  } catch (error) {
-    console.error('❌ Impossible de déchiffrer les tokens - clé invalide ou données corrompues:', error)
-    return null
-  }
-}
-
-/**
- * Convertit une string base64 en ArrayBuffer
- */
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes.buffer
-}
-
-/**
- * Vérifie si un token est expiré
- */
-function isTokenExpired(expiresAt: string): boolean {
-  return new Date(expiresAt) <= new Date()
-}
-
-// ====================================================================================================
-// USAGE:
-// 
-// POST /functions/v1/email-history-sync
-// Headers: Authorization: Bearer <supabase-user-token>
-// 
-// Response:
-// {
-//   "success": true,
-//   "timestamp": "2025-01-09T10:30:00.000Z",
-//   "result": {
-//     "sentEmails": 15,
-//     "receivedEmails": 23,
-//     "trackedEmails": 15,
-//     "repliesDetected": 8,
-//     "errors": []
-//   }
-// }
-// ====================================================================================================
-
-console.log('🚀 Email History Sync v2.0 ready - E2E Encrypted Tokens')
+console.log('🚀 Email History Sync v3.3 ready - Support Dossiers Personnalisés')
