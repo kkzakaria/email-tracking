@@ -55,7 +55,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 interface AddUserModalProps {
-  onAddUser?: (user: Omit<FormValues, 'password' | 'confirmPassword'>) => void
+  onAddUser?: (user: { name: string; email: string; password: string; role: string }) => void
 }
 
 export function AddUserModal({ onAddUser }: AddUserModalProps) {
@@ -78,16 +78,14 @@ export function AddUserModal({ onAddUser }: AddUserModalProps) {
   async function onSubmit(values: FormValues) {
     setLoading(true)
     try {
-      // Simuler la création d'utilisateur (à remplacer par l'API)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      console.log("Nouvel utilisateur créé:", values)
-      // TODO: À l'avenir - Envoyer email d'invitation
-      
-      // Appeler le callback si fourni (sans les mots de passe pour la sécurité)
+      // Appeler le callback si fourni pour mettre à jour l'UI
       if (onAddUser) {
-        const { password, confirmPassword, ...userWithoutPassword } = values
-        onAddUser(userWithoutPassword)
+        onAddUser({
+          name: values.name,
+          email: values.email,
+          password: values.password,
+          role: values.role
+        })
       }
 
       // Réinitialiser le formulaire et fermer le modal

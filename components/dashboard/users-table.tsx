@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useId, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -40,6 +41,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { userService, type UserProfile, type CreateUserData } from "@/lib/services/user-service"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,9 +104,9 @@ type UserItem = {
   id: string
   name: string
   email: string
-  role: "Admin" | "Utilisateur" | "Lecteur"
-  status: "Actif" | "Inactif" | "En attente"
-  lastLogin: string
+  role: "admin" | "user" | "viewer"
+  status: "active" | "inactive"
+  lastLogin: string | null
   emailsSent: number
   responseRate: number
 }
@@ -137,7 +139,162 @@ const roleFilterFn: FilterFn<UserItem> = (
   return filterValue.includes(role)
 }
 
-const columns: ColumnDef<UserItem>[] = [
+export default function UsersTable() {
+  const id = useId()
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: "name",
+      desc: false,
+    },
+  ])
+
+  // États pour les données réelles
+  const [data, setData] = useState<UserItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [totalUsers, setTotalUsers] = useState(0)
+
+  // Fonction pour transformer UserProfile en UserItem pour le tableau
+  const transformUser = (user: UserProfile): UserItem => ({
+    id: user.id,
+    name: user.full_name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    lastLogin: user.last_login_at,
+    emailsSent: user.emails_sent,
+    responseRate: user.response_rate
+  })
+
+  // Charger les utilisateurs
+  const fetchUsers = async (searchFilter = "", statusFilter: string[] = [], roleFilter: string[] = []) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const result = await userService.getUsers({
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
+        search: searchFilter || undefined,
+        status: statusFilter.length === 1 ? statusFilter[0] as 'active' | 'inactive' : undefined,
+        role: roleFilter.length === 1 ? roleFilter[0] as 'admin' | 'user' | 'viewer' : undefined,
+      })
+
+      setData(result.users.map(transformUser))
+      setTotalUsers(result.pagination.total)
+    } catch (err) {
+      console.error('Erreur lors du chargement des utilisateurs:', err)
+      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+      toast.error('Erreur lors du chargement des utilisateurs')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Charger les utilisateurs au montage et quand les paramètres changent
+  useEffect(() => {
+    fetchUsers()
+  }, [pagination.pageIndex, pagination.pageSize])
+
+  // Recharger quand les filtres changent avec debounce
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (pagination.pageIndex === 0) {
+        // Extraire les filtres des états
+        const searchFilter = columnFilters.find(f => f.id === "name")?.value as string || ""
+        const statusFilter = columnFilters.find(f => f.id === "status")?.value as string[] || []
+        const roleFilter = columnFilters.find(f => f.id === "role")?.value as string[] || []
+
+        fetchUsers(searchFilter, statusFilter, roleFilter)
+      } else {
+        setPagination({ ...pagination, pageIndex: 0 })
+      }
+    }, 500)
+
+    return () => clearTimeout(timeout)
+  }, [columnFilters])
+
+  const handleDeleteRows = async () => {
+    const selectedRows = table.getSelectedRowModel().rows
+    const userIds = selectedRows.map((row) => row.original.id)
+
+    try {
+      setLoading(true)
+
+      // Supprimer tous les utilisateurs sélectionnés
+      await Promise.all(userIds.map(id => userService.deleteUser(id)))
+
+      // Recharger les données
+      await fetchUsers()
+      table.resetRowSelection()
+
+      toast.success(`${userIds.length} utilisateur${userIds.length > 1 ? 's supprimés' : ' supprimé'}`)
+    } catch (err) {
+      console.error('Erreur lors de la suppression:', err)
+      toast.error('Erreur lors de la suppression')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddUser = async (newUser: CreateUserData) => {
+    try {
+      setLoading(true)
+      await userService.createUser({
+        full_name: newUser.name,
+        email: newUser.email,
+        password: newUser.password,
+        role: newUser.role.toLowerCase() as 'admin' | 'user' | 'viewer'
+      })
+
+      // Recharger les données
+      await fetchUsers()
+      toast.success('Utilisateur créé avec succès')
+    } catch (err) {
+      console.error('Erreur lors de la création:', err)
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de la création')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateUser = async (userId: string, updateData: { status?: 'active' | 'inactive'; role?: 'admin' | 'user' | 'viewer' }) => {
+    try {
+      await userService.updateUser(userId, updateData)
+
+      // Recharger les données
+      await fetchUsers()
+
+      const actionText = updateData.status ? 'Statut mis à jour' : 'Rôle mis à jour'
+      toast.success(actionText)
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour:', err)
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour')
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await userService.deleteUser(userId)
+
+      // Recharger les données
+      await fetchUsers()
+      toast.success('Utilisateur supprimé avec succès')
+    } catch (err) {
+      console.error('Erreur lors de la suppression:', err)
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression')
+    }
+  }
+
+  const columns: ColumnDef<UserItem>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -192,15 +349,20 @@ const columns: ColumnDef<UserItem>[] = [
     accessorKey: "role",
     cell: ({ row }) => {
       const role = row.getValue("role") as string
-      const icon = role === "Admin" ? Shield : role === "Utilisateur" ? UserCog : User
+      const roleLabels = {
+        admin: "Admin",
+        user: "Utilisateur",
+        viewer: "Lecteur"
+      }
+      const icon = role === "admin" ? Shield : role === "user" ? UserCog : User
       const Icon = icon
       return (
         <Badge
-          variant={role === "Admin" ? "default" : "secondary"}
+          variant={role === "admin" ? "default" : "secondary"}
           className="gap-1"
         >
           <Icon className="h-3 w-3" />
-          {role}
+          {roleLabels[role as keyof typeof roleLabels]}
         </Badge>
       )
     },
@@ -212,15 +374,18 @@ const columns: ColumnDef<UserItem>[] = [
     accessorKey: "status",
     cell: ({ row }) => {
       const status = row.getValue("status") as string
+      const statusLabels = {
+        active: "Actif",
+        inactive: "Inactif"
+      }
       return (
         <Badge
           className={cn(
-            status === "Inactif" && "bg-gray-500 text-white hover:bg-gray-600",
-            status === "En attente" && "bg-yellow-500 text-white hover:bg-yellow-600",
-            status === "Actif" && "bg-green-500 text-white hover:bg-green-600"
+            status === "inactive" && "bg-gray-500 text-white hover:bg-gray-600",
+            status === "active" && "bg-green-500 text-white hover:bg-green-600"
           )}
         >
-          {status}
+          {statusLabels[status as keyof typeof statusLabels]}
         </Badge>
       )
     },
@@ -231,7 +396,15 @@ const columns: ColumnDef<UserItem>[] = [
     header: "Dernière connexion",
     accessorKey: "lastLogin",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("lastLogin"))
+      const lastLogin = row.getValue("lastLogin") as string | null
+      if (!lastLogin) {
+        return (
+          <span className="text-sm text-gray-500 dark:text-gray-400 italic">
+            Jamais
+          </span>
+        )
+      }
+      const date = new Date(lastLogin)
       return (
         <span className="text-sm text-gray-600 dark:text-gray-400">
           {date.toLocaleDateString('fr-FR')}
@@ -274,104 +447,11 @@ const columns: ColumnDef<UserItem>[] = [
   {
     id: "actions",
     header: () => <span className="sr-only">Actions</span>,
-    cell: ({ row }) => <RowActions row={row} />,
+    cell: ({ row }) => <RowActions row={row} onUpdate={handleUpdateUser} onDelete={handleDeleteUser} />,
     size: 60,
     enableHiding: false,
   },
 ]
-
-export default function UsersTable() {
-  const id = useId()
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 10,
-  })
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const [sorting, setSorting] = useState<SortingState>([
-    {
-      id: "name",
-      desc: false,
-    },
-  ])
-
-  // Données temporaires pour la démonstration
-  const [data, setData] = useState<UserItem[]>([
-    {
-      id: "1",
-      name: "Jean Dupont",
-      email: "jean.dupont@example.com",
-      role: "Admin",
-      status: "Actif",
-      lastLogin: "2024-01-15T10:30:00",
-      emailsSent: 245,
-      responseRate: 78,
-    },
-    {
-      id: "2",
-      name: "Marie Martin",
-      email: "marie.martin@example.com",
-      role: "Utilisateur",
-      status: "Actif",
-      lastLogin: "2024-01-14T14:20:00",
-      emailsSent: 189,
-      responseRate: 65,
-    },
-    {
-      id: "3",
-      name: "Pierre Bernard",
-      email: "pierre.bernard@example.com",
-      role: "Lecteur",
-      status: "En attente",
-      lastLogin: "2024-01-10T09:15:00",
-      emailsSent: 0,
-      responseRate: 0,
-    },
-    {
-      id: "4",
-      name: "Sophie Dubois",
-      email: "sophie.dubois@example.com",
-      role: "Utilisateur",
-      status: "Actif",
-      lastLogin: "2024-01-15T16:45:00",
-      emailsSent: 342,
-      responseRate: 82,
-    },
-    {
-      id: "5",
-      name: "Luc Moreau",
-      email: "luc.moreau@example.com",
-      role: "Utilisateur",
-      status: "Inactif",
-      lastLogin: "2023-12-20T11:30:00",
-      emailsSent: 67,
-      responseRate: 45,
-    },
-  ])
-
-  const handleDeleteRows = () => {
-    const selectedRows = table.getSelectedRowModel().rows
-    const updatedData = data.filter(
-      (item) => !selectedRows.some((row) => row.original.id === item.id)
-    )
-    setData(updatedData)
-    table.resetRowSelection()
-  }
-
-  const handleAddUser = (newUser: { name: string; email: string; role: "Admin" | "Utilisateur" | "Lecteur" }) => {
-    const user: UserItem = {
-      id: (data.length + 1).toString(),
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      status: "Actif", // Directement actif puisqu'on crée l'utilisateur directement
-      lastLogin: new Date().toISOString(),
-      // TODO: À l'avenir avec invitation - status: "En attente"
-    }
-    setData([...data, user])
-  }
 
   const table = useReactTable({
     data,
@@ -386,6 +466,8 @@ export default function UsersTable() {
     onColumnVisibilityChange: setColumnVisibility,
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    manualPagination: true,
+    pageCount: Math.ceil(totalUsers / pagination.pageSize),
     state: {
       sorting,
       pagination,
@@ -769,7 +851,37 @@ export default function UsersTable() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-2">Chargement des utilisateurs...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-red-600"
+                >
+                  <div className="flex flex-col items-center">
+                    <CircleXIcon className="h-6 w-6 mb-2" />
+                    <span>Erreur: {error}</span>
+                    <button
+                      onClick={fetchUsers}
+                      className="mt-2 text-sm text-blue-600 hover:underline"
+                    >
+                      Réessayer
+                    </button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -791,7 +903,7 @@ export default function UsersTable() {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  Aucun résultat.
+                  Aucun utilisateur trouvé.
                 </TableCell>
               </TableRow>
             )}
@@ -842,12 +954,12 @@ export default function UsersTable() {
                     table.getState().pagination.pageSize,
                   0
                 ),
-                table.getRowCount()
+                totalUsers
               )}
             </span>{" "}
             sur{" "}
             <span className="text-foreground">
-              {table.getRowCount().toString()}
+              {totalUsers.toString()}
             </span>
           </p>
         </div>
@@ -916,7 +1028,47 @@ export default function UsersTable() {
   )
 }
 
-function RowActions({ row }: { row: Row<UserItem> }) {
+function RowActions({ row, onUpdate, onDelete }: {
+  row: Row<UserItem>
+  onUpdate: (userId: string, data: { status?: 'active' | 'inactive'; role?: 'admin' | 'user' | 'viewer' }) => Promise<void>
+  onDelete: (userId: string) => Promise<void>
+}) {
+  const [loading, setLoading] = useState(false)
+
+  const handleStatusToggle = async () => {
+    setLoading(true)
+    try {
+      const newStatus = row.original.status === "active" ? "inactive" : "active"
+      await onUpdate(row.original.id, { status: newStatus })
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRoleChange = async (newRole: 'admin' | 'user' | 'viewer') => {
+    setLoading(true)
+    try {
+      await onUpdate(row.original.id, { role: newRole })
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setLoading(true)
+    try {
+      await onDelete(row.original.id)
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -926,6 +1078,7 @@ function RowActions({ row }: { row: Row<UserItem> }) {
             variant="ghost"
             className="shadow-none"
             aria-label="Actions pour l'utilisateur"
+            disabled={loading}
           >
             <EllipsisIcon size={16} aria-hidden="true" />
           </Button>
@@ -933,37 +1086,92 @@ function RowActions({ row }: { row: Row<UserItem> }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <span>Modifier</span>
-            <DropdownMenuShortcut>⌘E</DropdownMenuShortcut>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <span>Changer le rôle</span>
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <UserCog className="mr-2 h-4 w-4" />
+              <span>Changer le rôle</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  onClick={() => handleRoleChange('admin')}
+                  disabled={loading || row.original.role === 'admin'}
+                >
+                  <Shield className="mr-2 h-4 w-4" />
+                  <span>Admin</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleRoleChange('user')}
+                  disabled={loading || row.original.role === 'user'}
+                >
+                  <UserCog className="mr-2 h-4 w-4" />
+                  <span>Utilisateur</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleRoleChange('viewer')}
+                  disabled={loading || row.original.role === 'viewer'}
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Lecteur</span>
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <span>Réinitialiser le mot de passe</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <span>Envoyer une invitation</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <span>{row.original.status === "Actif" ? "Désactiver" : "Activer"}</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <span>Voir l'historique</span>
+          <DropdownMenuItem onClick={handleStatusToggle} disabled={loading}>
+            {row.original.status === "active" ? (
+              <>
+                <UserX className="mr-2 h-4 w-4" />
+                <span>Désactiver</span>
+              </>
+            ) : (
+              <>
+                <User className="mr-2 h-4 w-4" />
+                <span>Activer</span>
+              </>
+            )}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive focus:text-destructive">
-          <span>Supprimer</span>
-          <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
-        </DropdownMenuItem>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={(e) => e.preventDefault()}
+            >
+              <TrashIcon className="mr-2 h-4 w-4" />
+              <span>Supprimer</span>
+              <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
+              <div
+                className="flex size-9 shrink-0 items-center justify-center rounded-full border"
+                aria-hidden="true"
+              >
+                <CircleAlertIcon className="opacity-80" size={16} />
+              </div>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Êtes-vous sûr ?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action est irréversible. L'utilisateur "{row.original.name}"
+                  sera définitivement supprimé.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={loading}>
+                {loading ? "Suppression..." : "Supprimer"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DropdownMenuContent>
     </DropdownMenu>
   )
