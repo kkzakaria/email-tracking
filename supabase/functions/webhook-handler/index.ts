@@ -129,15 +129,23 @@ async function processMessageNotification(messageId: string, resourcePath?: stri
     // Créer client Supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // Déterminer si c'est un message reçu (réponse) ou envoyé
-    const isSentMessage = await checkIfMessageInSentItems(messageId)
+    // Déterminer le type de message basé sur le resourcePath et l'expéditeur
+    const isSentMessage = resourcePath?.includes('sentitems') ||
+                         (graphMessage.from?.emailAddress?.address === 'service-exploitation@karta-transit.ci')
+
+    // Vérifier si c'est une réponse à un email que nous avons envoyé
+    const isReplyToOurEmail = !isSentMessage &&
+                             graphMessage.from?.emailAddress?.address !== 'service-exploitation@karta-transit.ci' &&
+                             graphMessage.conversationId
 
     if (isSentMessage) {
       console.log('📤 Message envoyé détecté, création d\'entrée de tracking')
       await handleSentMessage(supabase, graphMessage)
-    } else {
-      console.log('📬 Message reçu détecté, recherche d\'emails trackés correspondants')
+    } else if (isReplyToOurEmail) {
+      console.log('📬 Réponse reçue détectée, mise à jour du statut de l\'email original')
       await handleReceivedMessage(supabase, graphMessage)
+    } else {
+      console.log('📬 Message reçu non lié au tracking')
     }
 
   } catch (error) {
@@ -171,11 +179,11 @@ async function checkIfMessageInSentItems(messageId: string): Promise<boolean> {
 }
 
 /**
- * Traiter un message envoyé (création de tracking)
+ * Traiter un message envoyé (utilise l'ancienne logique avec auto-tracking)
  */
 async function handleSentMessage(supabase: SupabaseClientType, message: GraphMessage): Promise<void> {
   try {
-    console.log('📤 Création d\'une entrée de tracking pour message envoyé')
+    console.log('📤 Enregistrement message envoyé dans sent_messages (auto-tracking)')
 
     const recipientEmail = message.toRecipients?.[0]?.emailAddress?.address
     if (!recipientEmail) {
@@ -183,27 +191,23 @@ async function handleSentMessage(supabase: SupabaseClientType, message: GraphMes
       return
     }
 
-    // Créer ou mettre à jour l'entrée tracked_emails
-    const { error: insertError } = await supabase
-      .from('tracked_emails')
-      .upsert({
-        message_id: message.internetMessageId || message.id,
-        subject: message.subject || 'Sans sujet',
-        recipient_email: recipientEmail,
-        sender_email: 'service-exploitation@karta-transit.ci',
-        sent_at: message.sentDateTime || new Date().toISOString(),
-        status: 'PENDING',
-        user_id: null, // Plus de user_id avec l'architecture application
-        graph_message_id: message.id,
-        last_checked: new Date().toISOString()
-      }, {
-        onConflict: 'graph_message_id'
+    // Utiliser la fonction log_sent_message qui déclenche automatiquement le trigger
+    const { data: messageId, error: insertError } = await supabase
+      .rpc('log_sent_message', {
+        p_graph_message_id: message.id,
+        p_internet_message_id: message.internetMessageId,
+        p_conversation_id: message.conversationId,
+        p_subject: message.subject || 'Sans sujet',
+        p_from_email: message.from?.emailAddress?.address || 'service-exploitation@karta-transit.ci',
+        p_to_email: recipientEmail,
+        p_body_preview: message.bodyPreview?.substring(0, 500),
+        p_sent_at: message.sentDateTime ? new Date(message.sentDateTime).toISOString() : null
       })
 
     if (insertError) {
-      console.error('❌ Erreur création tracking:', insertError)
+      console.error('❌ Erreur enregistrement message envoyé:', insertError)
     } else {
-      console.log('✅ Email tracké créé avec succès')
+      console.log('✅ Message envoyé enregistré avec ID:', messageId, '(auto-tracking activé)')
     }
 
   } catch (error) {
@@ -212,66 +216,29 @@ async function handleSentMessage(supabase: SupabaseClientType, message: GraphMes
 }
 
 /**
- * Traiter un message reçu (potentielle réponse)
+ * Traiter un message reçu (utilise l'ancienne logique avec auto-détection)
  */
 async function handleReceivedMessage(supabase: SupabaseClientType, message: GraphMessage): Promise<void> {
   try {
-    console.log('📬 Recherche d\'emails trackés correspondant au message reçu')
+    console.log('📬 Enregistrement message reçu dans received_messages (auto-détection)')
 
-    // Rechercher par conversation ID ou sujet
-    let trackedEmails: TrackedEmail[] = []
+    // Enregistrer le message reçu qui déclenche automatiquement la détection des réponses
+    const { data: messageId, error: insertError } = await supabase
+      .rpc('log_received_message', {
+        p_graph_message_id: message.id,
+        p_internet_message_id: message.internetMessageId,
+        p_conversation_id: message.conversationId,
+        p_subject: message.subject || 'Sans sujet',
+        p_from_email: message.from?.emailAddress?.address,
+        p_to_email: message.toRecipients?.[0]?.emailAddress?.address,
+        p_body_preview: message.bodyPreview?.substring(0, 500),
+        p_received_at: message.receivedDateTime ? new Date(message.receivedDateTime).toISOString() : null
+      })
 
-    if (message.conversationId) {
-      // Rechercher par conversation d'abord
-      const { data: emailsByConv } = await supabase
-        .from('tracked_emails')
-        .select('*')
-        .eq('conversation_id', message.conversationId)
-        .eq('status', 'PENDING')
-
-      trackedEmails = emailsByConv || []
-    }
-
-    // Si pas trouvé par conversation, rechercher par sujet (Re:, Fwd:)
-    if (trackedEmails.length === 0 && message.subject) {
-      const cleanSubject = message.subject
-        .replace(/^(Re:|Fwd:|RE:|FWD:)\s*/i, '')
-        .trim()
-
-      if (cleanSubject) {
-        const { data: emailsBySubject } = await supabase
-          .from('tracked_emails')
-          .select('*')
-          .ilike('subject', `%${cleanSubject}%`)
-          .eq('status', 'PENDING')
-
-        trackedEmails = emailsBySubject || []
-      }
-    }
-
-    if (trackedEmails.length === 0) {
-      console.log('📭 Aucun email tracké correspondant trouvé')
-      return
-    }
-
-    console.log(`📧 ${trackedEmails.length} email(s) tracké(s) correspondant(s) trouvé(s)`)
-
-    // Mettre à jour le statut des emails trackés (flux direct simplifié)
-    for (const email of trackedEmails) {
-      await supabase
-        .from('tracked_emails')
-        .update({
-          status: 'REPLIED',
-          replied_at: message.receivedDateTime || new Date().toISOString(),
-          last_checked: new Date().toISOString(),
-          // Stocker les détails de la réponse directement dans tracked_emails
-          reply_sender_email: message.from?.emailAddress?.address || 'Inconnu',
-          reply_subject: message.subject || 'Sans sujet',
-          reply_graph_message_id: message.id
-        })
-        .eq('id', email.id)
-
-      console.log(`✅ Email ${email.id} marqué comme répondu - flux direct`)
+    if (insertError) {
+      console.error('❌ Erreur enregistrement message reçu:', insertError)
+    } else {
+      console.log('✅ Message reçu enregistré avec ID:', messageId, '(auto-détection des réponses activée)')
     }
 
   } catch (error) {

@@ -212,12 +212,12 @@ async function listGraphSubscriptions(accessToken: string): Promise<GraphSubscri
 // ====================================================================================================
 
 /**
- * Handler: Créer une subscription
+ * Handler: Créer des subscriptions DUALES (inbox + sentitems)
  */
 async function handleCreateSubscription(userEmail?: string): Promise<Response> {
   try {
     const email = userEmail || 'service-exploitation@karta-transit.ci'
-    console.log(`📝 Création subscription pour: ${email}`)
+    console.log(`📝 Création subscriptions DUALES pour: ${email}`)
 
     const accessToken = await getApplicationToken()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -225,51 +225,121 @@ async function handleCreateSubscription(userEmail?: string): Promise<Response> {
     // URL du webhook
     const webhookUrl = `${SUPABASE_URL}/functions/v1/webhook-handler`
 
-    // Créer la subscription dans Microsoft Graph
-    const graphSubscription = await createGraphSubscription(accessToken, email, webhookUrl)
+    // Calculer l'expiration (maximum 4230 minutes = ~71h pour les mailboxes)
+    const expirationDateTime = new Date(Date.now() + (4230 * 60 * 1000)).toISOString()
 
-    if (!graphSubscription) {
+    // Définir les deux subscriptions : inbox + sent items
+    const subscriptionsToCreate = [
+      {
+        resource: `users/${email}/messages`,
+        resourceType: 'inbox',
+        description: 'Messages reçus (inbox)'
+      },
+      {
+        resource: `users/${email}/mailFolders/sentitems/messages`,
+        resourceType: 'sentitems',
+        description: 'Messages envoyés (sent items)'
+      }
+    ]
+
+    const createdSubscriptions: any[] = []
+    let errors = 0
+
+    // Créer chaque subscription
+    for (const subscriptionConfig of subscriptionsToCreate) {
+      try {
+        console.log(`📤 Création subscription: ${subscriptionConfig.description}`)
+
+        const subscriptionData = {
+          changeType: 'created',
+          notificationUrl: webhookUrl,
+          resource: subscriptionConfig.resource,
+          expirationDateTime: expirationDateTime,
+          clientState: WEBHOOK_CLIENT_STATE,
+          latestSupportedTlsVersion: 'v1_2'
+        }
+
+        // Créer la subscription via Microsoft Graph
+        const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(subscriptionData)
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`❌ Erreur création subscription ${subscriptionConfig.resourceType}:`, response.status, errorText)
+          errors++
+          continue
+        }
+
+        const graphSubscription = await response.json()
+        console.log(`✅ Subscription ${subscriptionConfig.resourceType} créée:`, graphSubscription.id)
+
+        // Sauvegarder dans Supabase
+        const { error: insertError } = await supabase
+          .from('graph_subscriptions')
+          .insert({
+            subscription_id: graphSubscription.id,
+            user_email: email,
+            resource: graphSubscription.resource,
+            change_type: graphSubscription.changeType,
+            notification_url: graphSubscription.notificationUrl,
+            expires_at: graphSubscription.expirationDateTime,
+            client_state: graphSubscription.clientState,
+            status: 'active',
+            resource_type: subscriptionConfig.resourceType,
+            user_id: null, // Plus de user_id avec l'architecture application
+            created_at: new Date().toISOString()
+          })
+
+        if (insertError) {
+          console.error(`❌ Erreur sauvegarde subscription ${subscriptionConfig.resourceType}:`, insertError)
+          // Tenter de supprimer la subscription Graph créée
+          await deleteGraphSubscription(accessToken, graphSubscription.id)
+          errors++
+          continue
+        }
+
+        console.log(`✅ Subscription ${subscriptionConfig.resourceType} sauvegardée en DB`)
+        createdSubscriptions.push({
+          id: graphSubscription.id,
+          resource: graphSubscription.resource,
+          resourceType: subscriptionConfig.resourceType,
+          expiresAt: graphSubscription.expirationDateTime
+        })
+
+      } catch (error) {
+        console.error(`❌ Erreur pour subscription ${subscriptionConfig.resourceType}:`, error)
+        errors++
+      }
+    }
+
+    // Vérifier les résultats
+    if (createdSubscriptions.length === 0) {
       return createCorsResponse({
         success: false,
-        error: 'Impossible de créer la subscription Graph'
+        error: 'Aucune subscription créée',
+        message: 'Toutes les subscriptions ont échoué',
+        errors
       }, { status: 500 })
     }
 
-    // Sauvegarder dans Supabase
-    const { error: insertError } = await supabase
-      .from('graph_subscriptions')
-      .insert({
-        subscription_id: graphSubscription.id,
-        user_email: email,
-        resource: graphSubscription.resource,
-        change_type: graphSubscription.changeType,
-        notification_url: graphSubscription.notificationUrl,
-        expires_at: graphSubscription.expirationDateTime,
-        client_state: graphSubscription.clientState,
-        status: 'active',
-        user_id: null, // Plus de user_id avec l'architecture application
-        created_at: new Date().toISOString()
-      })
-
-    if (insertError) {
-      console.error('❌ Erreur sauvegarde subscription:', insertError)
-      // Tenter de supprimer la subscription Graph créée
-      await deleteGraphSubscription(accessToken, graphSubscription.id)
-      return createCorsResponse({
-        success: false,
-        error: 'Erreur sauvegarde subscription'
-      }, { status: 500 })
-    }
+    const success = createdSubscriptions.length === subscriptionsToCreate.length
+    const statusCode = success ? 201 : 207 // 207 = Multi-Status
 
     return createCorsResponse({
-      success: true,
-      subscription: {
-        id: graphSubscription.id,
-        userEmail: email,
-        resource: graphSubscription.resource,
-        expiresAt: graphSubscription.expirationDateTime
-      }
-    })
+      success,
+      subscriptions: createdSubscriptions,
+      message: `${createdSubscriptions.length}/${subscriptionsToCreate.length} subscriptions créées`,
+      userEmail: email,
+      total: subscriptionsToCreate.length,
+      created: createdSubscriptions.length,
+      errors
+    }, { status: statusCode })
 
   } catch (error) {
     console.error('❌ Erreur handleCreateSubscription:', error)
