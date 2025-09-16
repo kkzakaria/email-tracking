@@ -72,6 +72,7 @@ export interface GraphMessage {
   internetMessageId?: string
   conversationId?: string
   subject?: string
+  bodyPreview?: string
   from?: {
     emailAddress?: {
       address?: string
