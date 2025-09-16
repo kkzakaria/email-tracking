@@ -1,9 +1,9 @@
 // ====================================================================================================
-// SUPABASE EDGE FUNCTION: webhook-handler (Version Application Permissions v2.0)
+// SUPABASE EDGE FUNCTION: webhook-handler (Version Application Permissions v3.0)
 // ====================================================================================================
-// Description: Réceptionne et traite les webhooks Microsoft Graph avec token d'application centralisé
+// Description: Réceptionne et traite les webhooks Microsoft Graph avec flux direct simplifié
 // URL: https://[project-id].supabase.co/functions/v1/webhook-handler
-// Version: 2.0 - Architecture simplifiée avec permissions application
+// Version: 3.0 - Architecture ultra-simplifiée: webhook → tracked_emails (une seule table)
 // ====================================================================================================
 
 import { serve } from "std/http/server.ts"
@@ -53,28 +53,48 @@ async function getApplicationToken(): Promise<string> {
 // ====================================================================================================
 
 /**
- * Récupérer un message depuis Microsoft Graph
+ * Récupérer un message depuis Microsoft Graph (avec support multi-utilisateurs)
  */
-async function getMessageFromGraph(messageId: string): Promise<GraphMessage | null> {
+async function getMessageFromGraph(messageId: string, resourcePath?: string): Promise<GraphMessage | null> {
   try {
     const accessToken = await getApplicationToken()
 
-    // Utiliser les permissions application pour accéder aux emails de tous les utilisateurs
-    // On cherche d'abord dans la boîte principale de service
-    const serviceEmail = 'service-exploitation@karta-transit.ci'
-
-    const response = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${serviceEmail}/messages/${messageId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+    // Si nous avons un resourcePath du webhook, l'utiliser directement
+    let apiUrl: string
+    if (resourcePath) {
+      // Extraire l'userId depuis le resource path: "Users/[userId]/Messages/[messageId]"
+      const userIdMatch = resourcePath.match(/Users\/([^\/]+)\/Messages/)
+      if (userIdMatch) {
+        const userId = userIdMatch[1]
+        apiUrl = `https://graph.microsoft.com/v1.0/users/${userId}/messages/${messageId}`
+        console.log(`📧 Récupération message depuis userId: ${userId}`)
+      } else {
+        // Fallback vers l'email de service
+        apiUrl = `https://graph.microsoft.com/v1.0/users/service-exploitation@karta-transit.ci/messages/${messageId}`
+        console.log('📧 Fallback vers email de service')
       }
-    )
+    } else {
+      // Essayer d'abord avec l'email de service (rétrocompatibilité)
+      apiUrl = `https://graph.microsoft.com/v1.0/users/service-exploitation@karta-transit.ci/messages/${messageId}`
+      console.log('📧 Utilisation email de service par défaut')
+    }
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
 
     if (!response.ok) {
       console.error('❌ Erreur récupération message Graph:', response.status, response.statusText)
+
+      // Si échec avec l'userId, essayer avec l'email de service (fallback)
+      if (resourcePath && !apiUrl.includes('service-exploitation')) {
+        console.log('🔄 Tentative fallback avec email de service...')
+        return await getMessageFromGraph(messageId) // Récursion sans resourcePath
+      }
+
       return null
     }
 
@@ -92,12 +112,15 @@ async function getMessageFromGraph(messageId: string): Promise<GraphMessage | nu
 /**
  * Traiter une notification de changement de message
  */
-async function processMessageNotification(messageId: string): Promise<void> {
+async function processMessageNotification(messageId: string, resourcePath?: string): Promise<void> {
   console.log(`📨 Traitement notification message: ${messageId}`)
+  if (resourcePath) {
+    console.log(`🔗 Resource path: ${resourcePath}`)
+  }
 
   try {
-    // Récupérer le message depuis Graph
-    const graphMessage = await getMessageFromGraph(messageId)
+    // Récupérer le message depuis Graph avec le resourcePath si disponible
+    const graphMessage = await getMessageFromGraph(messageId, resourcePath)
     if (!graphMessage) {
       console.error('❌ Message non trouvé dans Graph:', messageId)
       return
@@ -233,30 +256,22 @@ async function handleReceivedMessage(supabase: SupabaseClientType, message: Grap
 
     console.log(`📧 ${trackedEmails.length} email(s) tracké(s) correspondant(s) trouvé(s)`)
 
-    // Mettre à jour le statut des emails trackés
+    // Mettre à jour le statut des emails trackés (flux direct simplifié)
     for (const email of trackedEmails) {
       await supabase
         .from('tracked_emails')
         .update({
           status: 'REPLIED',
           replied_at: message.receivedDateTime || new Date().toISOString(),
-          last_checked: new Date().toISOString()
+          last_checked: new Date().toISOString(),
+          // Stocker les détails de la réponse directement dans tracked_emails
+          reply_sender_email: message.from?.emailAddress?.address || 'Inconnu',
+          reply_subject: message.subject || 'Sans sujet',
+          reply_graph_message_id: message.id
         })
         .eq('id', email.id)
 
-      // Enregistrer le message reçu
-      await supabase
-        .from('received_messages')
-        .insert({
-          tracked_email_id: email.id,
-          graph_message_id: message.id,
-          sender_email: message.from?.emailAddress?.address || 'Inconnu',
-          subject: message.subject || 'Sans sujet',
-          received_at: message.receivedDateTime || new Date().toISOString(),
-          conversation_id: message.conversationId
-        })
-
-      console.log(`✅ Email ${email.id} marqué comme répondu`)
+      console.log(`✅ Email ${email.id} marqué comme répondu - flux direct`)
     }
 
   } catch (error) {
@@ -299,8 +314,21 @@ serve(async (req: Request): Promise<Response> => {
 
     // Traitement des notifications POST
     if (req.method === 'POST') {
-      const notification: WebhookNotification = await req.json()
-      console.log('📨 Notification reçue:', JSON.stringify(notification, null, 2))
+      const body = await req.json()
+      console.log('📨 Données reçues:', JSON.stringify(body, null, 2))
+
+      // Gestion des validationTokens (validation Microsoft Graph)
+      if (body.validationTokens) {
+        console.log('✅ Validation de subscription webhook via POST')
+        return createCorsResponse({ validationTokens: body.validationTokens })
+      }
+
+      // Traitement des notifications webhook normales
+      const notification: WebhookNotification = body
+      if (!notification.value || !Array.isArray(notification.value)) {
+        console.error('❌ Format de notification invalide - propriété value manquante ou invalide')
+        return createCorsResponse({ error: 'Invalid notification format' }, { status: 400 })
+      }
 
       // Vérifier clientState
       for (const change of notification.value) {
@@ -311,7 +339,7 @@ serve(async (req: Request): Promise<Response> => {
 
         // Traiter selon le type de changement
         if (change.changeType === 'created' && change.resourceData?.id) {
-          await processMessageNotification(change.resourceData.id)
+          await processMessageNotification(change.resourceData.id, change.resource)
         }
       }
 

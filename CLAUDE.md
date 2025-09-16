@@ -149,24 +149,41 @@ WEBHOOK_CLIENT_STATE=          # Clé de sécurité validation
 
 - **Frontend**: Display-only, pas d'envoi d'emails (Phase 2)
 - **Backend**: Edge Functions autonomes, pas d'API routes Next.js
-- **Database**: Triggers PostgreSQL pour logique métier automatique
+- **Database**: Architecture simplifiée avec flux direct (plus de triggers)
 - **UI**: Uniquement shadcn/ui components (16 conservés)
 - **Documentation**: Nettoyée, seuls README.md et CLAUDE.md restent
 
 ### Phase Actuelle
 
 ✅ **Phase 1 - Architecture Foundation** (Complète)
-- Edge Functions webhook-handler et subscription-manager
-- Schema PostgreSQL avec triggers automatiques
+- Edge Functions webhook-handler v3.0 et subscription-manager
+- Schema PostgreSQL avec flux direct simplifié
 - RLS et sécurité configurés
 - Interface display-only basique
 - **Renouvellement automatique via pg_cron** (Migration 009)
+- **Architecture simplifiée** (Migration 032) - Flux direct: webhook → tracked_emails
 
 🚧 **Phase 2 - Interface Reconstruction** (En cours)
 - Reconstruction progressive du frontend
 - Interface d'envoi d'emails
 - Dashboard avancé avec analytics
 - Notifications temps réel
+
+### Architecture Simplifiée v3.0
+
+#### Flux Direct Ultra-Simplifié
+1. **Webhook Microsoft Graph** → Edge Function `webhook-handler` v3.0
+2. **Message envoyé** → Création directe dans `tracked_emails` (status: `PENDING`)
+3. **Message reçu (réponse)** → Mise à jour directe dans `tracked_emails` (status: `REPLIED`)
+4. **Interface temps réel** → Lecture simple via Supabase client
+
+#### Suppression des Composants Obsolètes (Migration 032)
+- ❌ Tables `sent_messages` et `received_messages` (supprimées)
+- ❌ Triggers PostgreSQL automatiques (supprimés)
+- ❌ Fonctions `detect_sent_emails()`, `log_sent_message()`, etc. (supprimées)
+- ❌ Vues complexes `email_activity_summary`, etc. (supprimées)
+- ✅ Une seule table `tracked_emails` avec colonnes optimisées
+- ✅ Vue simplifiée `email_stats` pour statistiques
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
