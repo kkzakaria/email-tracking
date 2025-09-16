@@ -6,9 +6,8 @@
 // Actions: get-token, refresh-token, validate-token
 // ====================================================================================================
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { handleCors, createCorsResponse, corsHeaders } from '../_shared/cors.ts'
+import { serve } from "std/http/server.ts"
+import { createCorsResponse } from '../_shared/cors.ts'
 
 // Configuration Azure AD
 const AZURE_CLIENT_ID = Deno.env.get('AZURE_CLIENT_ID')
@@ -126,17 +125,19 @@ function invalidateCache(): void {
   tokenCache = null
 }
 
-serve(async (req) => {
+serve(async (req: Request): Promise<Response> => {
   // Gestion CORS
   if (req.method === 'OPTIONS') {
-    return handleCors(req)
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE'
+      }
+    })
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
 
     const url = new URL(req.url)
     const action = url.searchParams.get('action') || 'get-token'
@@ -161,7 +162,7 @@ serve(async (req) => {
           return createCorsResponse({
             success: false,
             error: 'Token requis'
-          }, 400)
+          }, { status: 400 })
         }
 
         const isValid = await validateToken(token)
@@ -202,15 +203,15 @@ serve(async (req) => {
         return createCorsResponse({
           success: false,
           error: `Action non supportée: ${action}`
-        }, 400)
+        }, { status: 400 })
     }
 
   } catch (error) {
     console.error('❌ Erreur app-token-manager:', error)
     return createCorsResponse({
       success: false,
-      error: error.message
-    }, 500)
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }, { status: 500 })
   }
 })
 
