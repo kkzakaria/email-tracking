@@ -44,7 +44,7 @@ const formSchema = z.object({
     message: "Le mot de passe doit contenir au moins 8 caractères.",
   }),
   confirmPassword: z.string(),
-  role: z.enum(["Admin", "Utilisateur", "Lecteur"]).refine((value) => value, {
+  role: z.enum(["admin", "user", "viewer"]).refine((value) => value, {
     message: "Veuillez sélectionner un rôle.",
   }),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -55,7 +55,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 interface AddUserModalProps {
-  onAddUser?: (user: Omit<FormValues, 'password' | 'confirmPassword'>) => void
+  onAddUser?: (user: { name: string; email: string; password: string; role: string }) => void
 }
 
 export function AddUserModal({ onAddUser }: AddUserModalProps) {
@@ -71,23 +71,21 @@ export function AddUserModal({ onAddUser }: AddUserModalProps) {
       email: "",
       password: "",
       confirmPassword: "",
-      role: "Utilisateur",
+      role: "user",
     },
   })
 
   async function onSubmit(values: FormValues) {
     setLoading(true)
     try {
-      // Simuler la création d'utilisateur (à remplacer par l'API)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      console.log("Nouvel utilisateur créé:", values)
-      // TODO: À l'avenir - Envoyer email d'invitation
-      
-      // Appeler le callback si fourni (sans les mots de passe pour la sécurité)
+      // Appeler le callback si fourni pour mettre à jour l'UI
       if (onAddUser) {
-        const { password, confirmPassword, ...userWithoutPassword } = values
-        onAddUser(userWithoutPassword)
+        onAddUser({
+          name: values.name,
+          email: values.email,
+          password: values.password,
+          role: values.role
+        })
       }
 
       // Réinitialiser le formulaire et fermer le modal
@@ -258,19 +256,19 @@ export function AddUserModal({ onAddUser }: AddUserModalProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Admin">
+                      <SelectItem value="admin">
                         <div className="flex items-center gap-2">
                           <Shield className="w-4 h-4" />
                           Admin
                         </div>
                       </SelectItem>
-                      <SelectItem value="Utilisateur">
+                      <SelectItem value="user">
                         <div className="flex items-center gap-2">
                           <UserCog className="w-4 h-4" />
                           Utilisateur
                         </div>
                       </SelectItem>
-                      <SelectItem value="Lecteur">
+                      <SelectItem value="viewer">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4" />
                           Lecteur
