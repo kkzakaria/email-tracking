@@ -63,6 +63,10 @@ interface TrackedEmail {
   created_at: string
 }
 
+interface EmailReminderWithTrackedEmail extends EmailReminder {
+  tracked_emails: TrackedEmail
+}
+
 /**
  * Obtenir un token d'application via app-token-manager
  */
@@ -183,7 +187,7 @@ async function processPendingReminders(supabase: any): Promise<{processed: numbe
   let failedCount = 0
 
   // Traiter chaque relance
-  for (const reminder of reminders) {
+  for (const reminder of (reminders as EmailReminderWithTrackedEmail[])) {
     console.log(`\n📨 Traitement relance #${reminder.reminder_number} pour email ${reminder.tracked_email_id}`)
 
     try {
@@ -913,7 +917,7 @@ async function getMaxReminders(userId: string): Promise<number> {
 /**
  * Logger un événement dans webhook_events
  */
-async function logWebhookEvent(supabase: any, changeType: string, data: unknown): Promise<void> {
+async function logWebhookEvent(supabase: any, changeType: string, data: Record<string, unknown>): Promise<void> {
   try {
     await supabase
       .from('webhook_events')
