@@ -2,6 +2,11 @@
 // TYPES PARTAGÉS - Edge Functions Supabase (Application Permissions Architecture v2.0)
 // ====================================================================================================
 
+import { SupabaseClient } from '@supabase/supabase-js'
+
+// Type pour le client Supabase utilisé dans les Edge Functions
+export type SupabaseClientType = SupabaseClient
+
 // Types Microsoft Graph Application Token
 export interface AppTokenData {
   access_token: string

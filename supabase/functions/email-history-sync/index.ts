@@ -9,7 +9,7 @@
 /// <reference lib="deno.ns" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GraphMessage, SyncStats } from '../_shared/types.ts'
+import { GraphMessage, SyncStats, SupabaseClientType } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -113,7 +113,7 @@ async function syncEmailHistory(): Promise<SyncStats> {
  */
 async function syncSentEmails(
   accessToken: string,
-  supabase: any,
+  supabase: SupabaseClientType,
   userEmail: string,
   dateFilter: string
 ): Promise<Partial<SyncStats>> {
@@ -208,7 +208,7 @@ async function syncSentEmails(
  */
 async function syncReceivedEmails(
   accessToken: string,
-  supabase: any,
+  supabase: SupabaseClientType,
   userEmail: string,
   dateFilter: string
 ): Promise<Partial<SyncStats>> {

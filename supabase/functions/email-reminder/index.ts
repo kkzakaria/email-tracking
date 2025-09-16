@@ -11,7 +11,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createCorsResponse } from '../_shared/cors.ts'
-import { TrackedEmail, EmailReminder, EmailReminderWithTrackedEmail, ReminderProcessingResult } from '../_shared/types.ts'
+import { TrackedEmail, EmailReminder, EmailReminderWithTrackedEmail, ReminderProcessingResult, SupabaseClientType } from '../_shared/types.ts'
 
 // Types Supabase
 interface SupabaseUser {
@@ -118,7 +118,7 @@ async function sendEmailViaGraph(
 /**
  * Traiter toutes les relances en attente
  */
-async function processPendingReminders(supabase: any): Promise<ReminderProcessingResult> {
+async function processPendingReminders(supabase: SupabaseClientType): Promise<ReminderProcessingResult> {
   console.log('🔄 Traitement des relances en attente...')
 
   // Récupérer les relances à envoyer
@@ -886,7 +886,7 @@ async function getMaxReminders(userId: string): Promise<number> {
 /**
  * Logger un événement dans webhook_events
  */
-async function logWebhookEvent(supabase: any, changeType: string, data: Record<string, unknown>): Promise<void> {
+async function logWebhookEvent(supabase: SupabaseClientType, changeType: string, data: Record<string, unknown>): Promise<void> {
   try {
     await supabase
       .from('webhook_events')

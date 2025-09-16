@@ -9,7 +9,7 @@
 import { serve } from "std/http/server.ts"
 import { createClient } from '@supabase/supabase-js'
 import { createCorsResponse } from '../_shared/cors.ts'
-import { WebhookNotification, GraphMessage } from '../_shared/types.ts'
+import { WebhookNotification, GraphMessage, SupabaseClientType, TrackedEmail } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -150,7 +150,7 @@ async function checkIfMessageInSentItems(messageId: string): Promise<boolean> {
 /**
  * Traiter un message envoyé (création de tracking)
  */
-async function handleSentMessage(supabase: any, message: GraphMessage): Promise<void> {
+async function handleSentMessage(supabase: SupabaseClientType, message: GraphMessage): Promise<void> {
   try {
     console.log('📤 Création d\'une entrée de tracking pour message envoyé')
 
@@ -191,12 +191,12 @@ async function handleSentMessage(supabase: any, message: GraphMessage): Promise<
 /**
  * Traiter un message reçu (potentielle réponse)
  */
-async function handleReceivedMessage(supabase: any, message: GraphMessage): Promise<void> {
+async function handleReceivedMessage(supabase: SupabaseClientType, message: GraphMessage): Promise<void> {
   try {
     console.log('📬 Recherche d\'emails trackés correspondant au message reçu')
 
     // Rechercher par conversation ID ou sujet
-    let trackedEmails: any[] = []
+    let trackedEmails: TrackedEmail[] = []
 
     if (message.conversationId) {
       // Rechercher par conversation d'abord
