@@ -34,6 +34,7 @@ export default async function DashboardLayout({
       
     if (emailData) {
       emails = emailData
+      console.log('📧 Layout SSR: Récupéré', emailData.length, 'emails côté serveur')
     }
   } catch (error) {
     console.error('Erreur lors de la récupération des données:', error)

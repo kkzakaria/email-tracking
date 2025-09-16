@@ -29,6 +29,10 @@ import {
   ListFilterIcon,
   MailIcon,
   RefreshCwIcon,
+  Timer,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -45,6 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import {
   Pagination,
   PaginationContent,
@@ -73,7 +78,15 @@ import {
 import { EmailStatusBadge } from "./email-status-badge"
 import type { Database } from "@/types/database.types"
 
-type TrackedEmail = Database["public"]["Tables"]["tracked_emails"]["Row"]
+type TrackedEmail = Database["public"]["Tables"]["tracked_emails"]["Row"] & {
+  reminders?: {
+    total: number
+    scheduled: number
+    sent: number
+    failed: number
+    cancelled: number
+  }
+}
 
 interface EmailsTableProps {
   data: TrackedEmail[]
@@ -116,6 +129,47 @@ const formatDateTime = (dateString: string | null, includeSeconds: boolean = tru
   } catch {
     return "Date invalide"
   }
+}
+
+// Composant pour afficher le statut des relances
+function ReminderStatus({ reminders }: { reminders?: TrackedEmail['reminders'] }) {
+  if (!reminders || reminders.total === 0) {
+    return (
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Timer className="w-3 h-3" />
+        <span>Aucune</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      {reminders.scheduled > 0 && (
+        <Badge variant="secondary" className="text-xs py-0 px-1 h-5">
+          <Clock className="w-3 h-3 mr-1" />
+          {reminders.scheduled}
+        </Badge>
+      )}
+      {reminders.sent > 0 && (
+        <Badge variant="default" className="text-xs py-0 px-1 h-5">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          {reminders.sent}
+        </Badge>
+      )}
+      {reminders.failed > 0 && (
+        <Badge variant="destructive" className="text-xs py-0 px-1 h-5">
+          <XCircle className="w-3 h-3 mr-1" />
+          {reminders.failed}
+        </Badge>
+      )}
+      {reminders.cancelled > 0 && (
+        <Badge variant="outline" className="text-xs py-0 px-1 h-5">
+          <XCircle className="w-3 h-3 mr-1" />
+          {reminders.cancelled}
+        </Badge>
+      )}
+    </div>
+  )
 }
 
 export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableProps) {
@@ -195,6 +249,15 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
       ),
       size: 100, // Réduit de 120 à 100
       filterFn: statusFilterFn,
+    },
+    {
+      header: "Relances",
+      id: "reminders",
+      cell: ({ row }) => (
+        <ReminderStatus reminders={row.original.reminders} />
+      ),
+      size: 120,
+      enableSorting: false,
     },
     {
       header: "Envoyé",
@@ -401,6 +464,7 @@ export function EmailsTable({ data, onRefresh, isLoading = false }: EmailsTableP
                       case "subject": return "Sujet"
                       case "recipient_email": return "Destinataire"
                       case "status": return "Statut"
+                      case "reminders": return "Relances"
                       case "sent_at": return "Envoyé"
                       case "reply_received_at": return "Réponse"
                       default: return id
