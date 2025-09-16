@@ -9,7 +9,7 @@
 /// <reference lib="deno.ns" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GraphMessage, SyncStats, EmailHistorySyncResponse } from '../_shared/types.ts'
+import { GraphMessage, SyncStats } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!

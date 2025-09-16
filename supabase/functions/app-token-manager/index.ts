@@ -8,7 +8,7 @@
 
 import { serve } from "std/http/server.ts"
 import { createCorsResponse, handleCors } from '../_shared/cors.ts'
-import { AppTokenData, CachedToken, TokenManagerResponse } from '../_shared/types.ts'
+import { AppTokenData, CachedToken } from '../_shared/types.ts'
 
 // Configuration Azure AD
 const AZURE_CLIENT_ID = Deno.env.get('AZURE_CLIENT_ID')

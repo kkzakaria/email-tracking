@@ -11,7 +11,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createCorsResponse, handleCors } from '../_shared/cors.ts'
-import { GraphSubscription, GraphSubscriptionResponse, SubscriptionResponse } from '../_shared/types.ts'
+import { GraphSubscription, GraphSubscriptionResponse } from '../_shared/types.ts'
 
 // Configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
