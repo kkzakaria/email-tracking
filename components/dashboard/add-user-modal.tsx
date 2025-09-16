@@ -44,7 +44,7 @@ const formSchema = z.object({
     message: "Le mot de passe doit contenir au moins 8 caractères.",
   }),
   confirmPassword: z.string(),
-  role: z.enum(["Admin", "Utilisateur", "Lecteur"]).refine((value) => value, {
+  role: z.enum(["admin", "user", "viewer"]).refine((value) => value, {
     message: "Veuillez sélectionner un rôle.",
   }),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -71,7 +71,7 @@ export function AddUserModal({ onAddUser }: AddUserModalProps) {
       email: "",
       password: "",
       confirmPassword: "",
-      role: "Utilisateur",
+      role: "user",
     },
   })
 
@@ -256,19 +256,19 @@ export function AddUserModal({ onAddUser }: AddUserModalProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Admin">
+                      <SelectItem value="admin">
                         <div className="flex items-center gap-2">
                           <Shield className="w-4 h-4" />
                           Admin
                         </div>
                       </SelectItem>
-                      <SelectItem value="Utilisateur">
+                      <SelectItem value="user">
                         <div className="flex items-center gap-2">
                           <UserCog className="w-4 h-4" />
                           Utilisateur
                         </div>
                       </SelectItem>
-                      <SelectItem value="Lecteur">
+                      <SelectItem value="viewer">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4" />
                           Lecteur

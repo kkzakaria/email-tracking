@@ -252,7 +252,7 @@ export default function UsersTable() {
         full_name: newUser.name,
         email: newUser.email,
         password: newUser.password,
-        role: newUser.role.toLowerCase() as 'admin' | 'user' | 'viewer'
+        role: newUser.role as 'admin' | 'user' | 'viewer'
       })
 
       // Recharger les données

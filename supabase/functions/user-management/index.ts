@@ -258,6 +258,7 @@ serve(async (req: Request) => {
       }
 
       // Créer l'utilisateur dans auth.users
+      console.log('Création utilisateur avec:', { email, role, full_name })
       const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
         email,
         password,
@@ -269,52 +270,70 @@ serve(async (req: Request) => {
       })
 
       if (authError || !authUser.user) {
+        console.error('Erreur création auth.users:', {
+          error: authError,
+          message: authError?.message,
+          code: authError?.code,
+          details: authError?.details,
+          hint: authError?.hint
+        })
         return jsonResponse(
-          { success: false, error: `Erreur lors de la création: ${authError?.message}` },
+          { success: false, error: `Erreur Auth: ${authError?.message || 'Utilisateur non créé'}` },
           400
         )
       }
 
-      // Le profil sera créé automatiquement par le trigger
-      // Attendre un moment pour s'assurer que le trigger s'exécute
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Récupérer le profil créé
+      // Créer le profil utilisateur directement (plus de trigger)
+      console.log('Création du profil utilisateur pour:', authUser.user.id)
       const { data: newProfile, error: profileError } = await supabase
         .from('user_profiles')
-        .select('*')
-        .eq('auth_user_id', authUser.user.id)
+        .insert({
+          auth_user_id: authUser.user.id,
+          full_name,
+          email,
+          role,
+          status: 'active',
+          emails_sent: 0,
+          emails_replied: 0,
+          response_rate: 0.00,
+          created_by: user.id
+        })
+        .select()
         .single()
 
       if (profileError) {
-        console.error('Erreur profil:', profileError)
-        // Le profil devrait être créé par le trigger, mais créons-le manuellement si nécessaire
-        const { data: manualProfile, error: manualError } = await supabase
-          .from('user_profiles')
-          .insert({
-            auth_user_id: authUser.user.id,
-            full_name,
-            email,
-            role,
-            status: 'active',
-            created_by: user.id
-          })
-          .select()
-          .single()
+        console.error('Erreur création profil:', {
+          error: profileError,
+          message: profileError?.message,
+          code: profileError?.code,
+          details: profileError?.details,
+          auth_user_id: authUser.user.id
+        })
 
-        if (manualError) {
+        // ROLLBACK: Supprimer l'utilisateur auth créé
+        console.log('ROLLBACK: Suppression de l\'utilisateur auth suite à l\'erreur profil')
+        const { error: deleteError } = await supabase.auth.admin.deleteUser(authUser.user.id)
+
+        if (deleteError) {
+          console.error('Erreur lors du rollback:', deleteError)
           return jsonResponse(
-            { success: false, error: 'Erreur lors de la création du profil' },
+            { success: false, error: `Erreur critique: ${profileError?.message} + échec rollback` },
             500
           )
         }
 
-        return jsonResponse({
-          success: true,
-          data: manualProfile,
-          message: 'Utilisateur créé avec succès'
-        })
+        return jsonResponse(
+          { success: false, error: `Erreur création profil: ${profileError?.message}` },
+          500
+        )
       }
+
+      console.log('Utilisateur et profil créés avec succès:', {
+        auth_user_id: authUser.user.id,
+        profile_id: newProfile.id,
+        email: newProfile.email,
+        role: newProfile.role
+      })
 
       return jsonResponse({
         success: true,
@@ -433,17 +452,49 @@ serve(async (req: Request) => {
         )
       }
 
-      // Supprimer l'utilisateur (cascade delete pour le profil)
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(
-        profileToDelete.auth_user_id
-      )
+      // Approche transactionnelle: supprimer d'abord le profil puis l'utilisateur auth
+      console.log('Suppression du profil pour:', profileToDelete.auth_user_id)
 
-      if (deleteError) {
+      // 1. Supprimer le profil utilisateur
+      const { error: profileDeleteError } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('auth_user_id', profileToDelete.auth_user_id)
+
+      if (profileDeleteError) {
+        console.error('Erreur suppression profil:', profileDeleteError)
         return jsonResponse(
-          { success: false, error: 'Erreur lors de la suppression' },
+          { success: false, error: `Erreur suppression profil: ${profileDeleteError.message}` },
           500
         )
       }
+
+      console.log('Profil supprimé, suppression utilisateur auth...')
+
+      // 2. Supprimer l'utilisateur de auth.users
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
+        profileToDelete.auth_user_id
+      )
+
+      if (authDeleteError) {
+        console.error('Erreur suppression auth.users:', {
+          error: authDeleteError,
+          message: authDeleteError?.message,
+          code: authDeleteError?.code
+        })
+
+        // ROLLBACK: Recréer le profil si la suppression auth échoue
+        console.log('ROLLBACK: Tentative de restauration du profil...')
+        // Note: En pratique, il serait difficile de restaurer complètement
+        // Il vaut mieux traiter cela comme une erreur critique
+
+        return jsonResponse(
+          { success: false, error: `Erreur suppression auth: ${authDeleteError?.message || 'Utilisateur auth non supprimé'}` },
+          500
+        )
+      }
+
+      console.log('Utilisateur complètement supprimé:', profileToDelete.auth_user_id)
 
       return jsonResponse({
         success: true,

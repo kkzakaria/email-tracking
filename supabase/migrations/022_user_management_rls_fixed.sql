@@ -1,9 +1,10 @@
 -- ====================================================================================================
--- USER MANAGEMENT SYSTEM - RLS POLICIES
+-- USER MANAGEMENT SYSTEM - RLS POLICIES (FIXED)
 -- ====================================================================================================
--- Migration 015: Politiques de sécurité Row Level Security
+-- Migration 022: Politiques de sécurité Row Level Security
 -- Created: 2025-01-16
 -- Description: Sécurisation de l'accès aux profils utilisateurs
+-- Note: Cette migration corrige le problème de synchronisation des migrations 019/020
 -- ====================================================================================================
 
 -- ====================================================================================================

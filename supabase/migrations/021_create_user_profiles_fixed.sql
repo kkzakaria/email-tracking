@@ -1,9 +1,10 @@
 -- ====================================================================================================
--- USER MANAGEMENT SYSTEM - USER PROFILES
+-- USER MANAGEMENT SYSTEM - USER PROFILES (FIXED)
 -- ====================================================================================================
--- Migration 014: Table des profils utilisateurs étendus
+-- Migration 021: Table des profils utilisateurs étendus
 -- Created: 2025-01-16
 -- Description: Gestion complète des utilisateurs avec profils étendus et statistiques
+-- Note: Cette migration corrige le problème de synchronisation des migrations 019/020
 -- ====================================================================================================
 
 -- ====================================================================================================
@@ -45,11 +46,11 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- Indexes pour performance
-CREATE INDEX idx_user_profiles_auth_user ON user_profiles(auth_user_id);
-CREATE INDEX idx_user_profiles_email ON user_profiles(email);
-CREATE INDEX idx_user_profiles_role ON user_profiles(role);
-CREATE INDEX idx_user_profiles_status ON user_profiles(status);
-CREATE INDEX idx_user_profiles_created_at ON user_profiles(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_auth_user ON user_profiles(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_status ON user_profiles(status);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_created_at ON user_profiles(created_at DESC);
 
 -- ====================================================================================================
 -- TRIGGER: Synchronisation avec auth.users
